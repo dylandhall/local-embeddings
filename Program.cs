@@ -6,11 +6,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading.Channels;
 using ConsoleMarkdownRenderer;
-using ConsoleMarkdownRenderer.ObjectRenderers;
 using Dasync.Collections;
 using LocalEmbeddings;
-using Markdig.Syntax;
 
 class Program
 {
@@ -19,7 +18,10 @@ class Program
     static async Task Main(string[] args)
     {
         var apiSettings = await ApiSettings.ReadSettings();
-        
+
+        if (apiSettings.MarqoApiKey != null) 
+            Console.WriteLine("WARNING: Marqo cloud API key not tested, added as a courtesy - let me know if it works so I can remove this warning");
+
         var doRefresh = args.Any(a => a.Contains("--refresh", StringComparison.OrdinalIgnoreCase));
         var reindexExisting = args.Any(a => a.Contains("--reindex", StringComparison.OrdinalIgnoreCase));
 
@@ -29,10 +31,10 @@ class Program
             return;
         }
         
+        await InitializeMarqoIndex(apiSettings);
+
         if (doRefresh)
         {
-            await InitializeMarqoIndex(apiSettings.MarqoHost, apiSettings.MarqoIndex, apiSettings.MarqoModel);
-
             string folderPath = @"C:\temp\issues";
 
             await GithubIssueDownloader.GetIssues(folderPath);
@@ -40,10 +42,10 @@ class Program
             var files = Directory.GetFiles(folderPath, "*.markdown");
 
             var documents = await GetFileDataAndSaveSummary(files, apiSettings)
-                .Select(v => new Document(Path.GetFileNameWithoutExtension(v.file), v.file, v.content, v.title, v.summary))
+                .Select(v => new Document(Path.GetFileNameWithoutExtension(v.File), v.File, v.Content, v.Title, v.Summary))
                 .ToListAsync();
 
-            await StoreEmbeddingsInMarqo(documents, apiSettings.MarqoHost, apiSettings.MarqoIndex, reindexExisting);
+            await StoreEmbeddingsInMarqo(documents, apiSettings, reindexExisting);
         }
         else
         {
@@ -51,7 +53,7 @@ class Program
             Console.WriteLine();
         }
 
-        var stats = await GetIndexStats(apiSettings.MarqoHost, apiSettings.MarqoIndex);
+        var stats = await GetIndexStats(apiSettings);
 
         if (stats is {Backend: not null})
         {
@@ -61,7 +63,7 @@ class Program
         }
             
         
-        var indexes = await GetIndexList(apiSettings.MarqoHost);
+        var indexes = await GetIndexList(apiSettings);
 
         Console.WriteLine("Current Marqo indexes:");
         foreach (var index in indexes)
@@ -84,7 +86,7 @@ class Program
             Console.WriteLine("Querying..");
             Console.WriteLine();
 
-            var topMatches = await QueryMarqo(apiSettings.MarqoHost, apiSettings.MarqoIndex, queryText, offset);
+            var topMatches = await QueryMarqo(apiSettings, queryText, offset);
 
             var summaryToQuery = queryText;
             var summaryTask = new Lazy<Task<string>>(() => GetSummaryOfMatches(summaryToQuery, topMatches, apiSettings.ApiUrl, apiSettings.ApiKey, apiSettings.Model));
@@ -155,45 +157,65 @@ class Program
 
         return;
 
-        // todo: we're not really taking advantage of concurrency here
-        static async IAsyncEnumerable<(string file, string content, string title, string summary)> GetFileDataAndSaveSummary(IEnumerable<string> files, ApiSettings apiSettings, int llmConcurrency = 1)
+        static async IAsyncEnumerable<FileSummary> GetFileDataAndSaveSummary(IEnumerable<string> files, ApiSettings apiSettings, int llmConcurrency = 1)
         {
-            var semaphore = new SemaphoreSlim(llmConcurrency);
-            var sw = new Stopwatch();
-            foreach (var file in files)
+            const int maxConcurrency = 32;
+            var llmSemaphore = new SemaphoreSlim(llmConcurrency);
+            var tasks = new List<Task<FileSummary>>();
+
+            foreach (var file in files.Where(f => !string.IsNullOrWhiteSpace(f)))
             {
-                string content = await File.ReadAllTextAsync(file);
-                Regex.Replace(content, "\\(data:image/\\w+;base64,[^\\)]+\\)", "()");
-                string title = content.Split(Environment.NewLine).FirstOrDefault()?.Substring(2) ?? "";
-
-                var summaryFile = $"{file}.summary";
-
-                if (File.Exists(summaryFile) && File.GetLastWriteTimeUtc(summaryFile) >= File.GetLastWriteTimeUtc(file))
+                if (tasks.Count >= maxConcurrency)
                 {
-                    string summary = await File.ReadAllTextAsync(summaryFile);
-                    yield return (file, content, title, summary);
-                    continue;
+                    var completedTask = await Task.WhenAny(tasks);
+                    tasks.Remove(completedTask);
+                    yield return await completedTask;
                 }
 
-                await semaphore.WaitAsync();
+                tasks.Add(ProcessFile(file, llmSemaphore, apiSettings));
+            }
 
-                sw.Start();
-                Console.WriteLine("Creating summary for " + file);
-                try
-                {
-                    var summary = await GetSummary(content, apiSettings.ApiUrl, apiSettings.ApiKey, apiSettings.Model);
-                    await File.WriteAllTextAsync(summaryFile, summary);
+            while (tasks.Count > 0)
+            {
+                var completedTask = await Task.WhenAny(tasks);
+                tasks.Remove(completedTask);
+                yield return await completedTask;
+            }
+        }
+        
+        static async Task<FileSummary> ProcessFile(string file, SemaphoreSlim semaphore, ApiSettings apiSettings)
+        {
+            var sw = new Stopwatch();
+            string content = await File.ReadAllTextAsync(file);
+            Regex.Replace(content, "\\(data:image/\\w+;base64,[^\\)]+\\)", "()");
+            string title = content.Split(Environment.NewLine).FirstOrDefault()?.Substring(2) ?? "";
 
-                    sw.Stop();
-                    Console.WriteLine($"Created summary for {file} in {sw.Elapsed}");
-                    yield return (file, content, title, summary);
-                }
-                finally
-                {
-                    sw.Stop();
-                    sw.Reset();
-                    semaphore.Release();
-                }
+            var summaryFile = $"{file}.summary";
+
+            if (File.Exists(summaryFile) && File.GetLastWriteTimeUtc(summaryFile) >= File.GetLastWriteTimeUtc(file))
+            {
+                string summary = await File.ReadAllTextAsync(summaryFile);
+                return new (file, content, title, summary);
+            }
+
+            await semaphore.WaitAsync();
+
+            sw.Start();
+            Console.WriteLine("Creating summary for " + file);
+            try
+            {
+                var summary = await GetSummary(content, apiSettings.ApiUrl, apiSettings.ApiKey, apiSettings.Model);
+                await File.WriteAllTextAsync(summaryFile, summary);
+
+                sw.Stop();
+                Console.WriteLine($"Created summary for {file} in {sw.Elapsed}");
+                return new (file, content, title, summary);
+            }
+            finally
+            {
+                sw.Stop();
+                sw.Reset();
+                semaphore.Release();
             }
         }
 
@@ -210,6 +232,9 @@ class Program
         }
     }
 
+    private record FileSummary(string File, string Content, string Title, string Summary);
+    
+    
     private static async Task AskQuestionsAboutIssue(Hit selected, string apiUrl, string apiKey, string model)
     {
         Console.WriteLine("Ask a question about this issue, enter to return:");
@@ -234,10 +259,28 @@ class Program
         }
     }
 
-    private static async Task InitializeMarqoIndex(string host, string index, string model)
+    private static HttpClient GetMarqoClient(ApiSettings apiSettings)
     {
+        var client = new HttpClient();
+
+        if (!string.IsNullOrEmpty(apiSettings.MarqoApiKey))
+        {
+            client.DefaultRequestHeaders.Add("x-api-key", apiSettings.MarqoApiKey);
+        }
+
+        return client;
+    }
+    
+    private static async Task InitializeMarqoIndex(ApiSettings apiSettings)
+    {
+        var host = apiSettings.MarqoHost;
+        var index = apiSettings.MarqoIndex;
+        var model = apiSettings.MarqoModel;
+
         var createIndexUrl = $"{host}/indexes/{index}";
-        using var client = new HttpClient();
+
+        using var client = GetMarqoClient(apiSettings);
+
         var requestBody = new
         {
             type = "unstructured",
@@ -402,70 +445,73 @@ class Program
         }
     }
 
-    private static async Task StoreEmbeddingsInMarqo(List<Document> allDocuments, string marqoHost, 
-        string index, bool reindexExisting)
+    private static async Task StoreEmbeddingsInMarqo(List<Document> allDocuments, ApiSettings apiSettings, bool reindexExisting)
     {
-        using (var client = new HttpClient())
+        var marqoHost = apiSettings.MarqoHost;
+        var index = apiSettings.MarqoIndex;
+
+        using var client = GetMarqoClient(apiSettings);
+        const int batch = 25;
+        var documents = allDocuments.Take(batch).ToList();
+        int offset = 0;
+        while (documents.Any())
         {
-            const int batch = 25;
-            var documents = allDocuments.Take(batch).ToList();
-            int offset = 0;
-            while (documents.Any())
+            if (!reindexExisting)
             {
-                if (!reindexExisting)
+                var missingDocIdBag = new ConcurrentBag<string>();
+                await documents.ParallelForEachAsync(async document =>
                 {
-                    var missingDocIdBag = new ConcurrentBag<string>();
-                    await documents.ParallelForEachAsync(async document =>
+                    var res = await client.GetAsync($"{marqoHost}/indexes/{index}/documents/{document._id}");
+
+                    if (res.IsSuccessStatusCode)
                     {
-                        var res = await client.GetAsync($"{marqoHost}/indexes/{index}/documents/{document._id}");
+                        var serverDoc = JsonSerializer.Deserialize<Document>(await res.Content.ReadAsStringAsync());
+                        if (serverDoc?.content.Equals(document.content, StringComparison.OrdinalIgnoreCase)??false) return;
+                    }
 
-                        if (res.IsSuccessStatusCode)
-                        {
-                            var serverDoc = JsonSerializer.Deserialize<Document>(await res.Content.ReadAsStringAsync());
-                            if (serverDoc?.content.Equals(document.content, StringComparison.OrdinalIgnoreCase)??false) return;
-                        }
-
-                        missingDocIdBag.Add(document._id);
-                    });
-                    documents = documents.IntersectBy(missingDocIdBag, d => d._id).ToList();
-                }
-                
-                if (documents.Count > 0)
-                {
-                    var requestBody = new StoreDocumentMarqoRequest(documents, ["title", "summary"]);
-
-                    var json = JsonSerializer.Serialize(requestBody);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    var response = await client.PostAsync($"{marqoHost}/indexes/{index}/documents", content);
-
-                    // this was a failed attempt to use "useExistingTensors = true" to avoid reindexing everything
-                    // it threw a 500 error so i'd fallback, but it did it for every row so i'm not using it anymore 
-                    
-                    // if the summary has changed and we're not re-indexing, it'll throw an exception. in this case re-index
-                    // if (!response.IsSuccessStatusCode && response.StatusCode == HttpStatusCode.InternalServerError &&
-                    //     !reindexExisting)
-                    // {
-                    //     Console.WriteLine("Chunks don't match, attempting re-indexing..");
-                    //     requestBody = requestBody with { useExistingTensors = false };
-                    //     json = JsonSerializer.Serialize(requestBody);
-                    //     content = new StringContent(json, Encoding.UTF8, "application/json");
-                    //     response = await client.PostAsync($"{marqoHost}/indexes/{index}/documents", content);
-                    // }
-
-                    response.EnsureSuccessStatusCode();
-
-                    Console.WriteLine($"Successfully updated/uploaded {documents.Count} documents");
-                }         
-                offset++;
-                documents = allDocuments.Skip(offset * batch).Take(batch).ToList();
+                    missingDocIdBag.Add(document._id);
+                });
+                documents = documents.IntersectBy(missingDocIdBag, d => d._id).ToList();
             }
-            
+                
+            if (documents.Count > 0)
+            {
+                var requestBody = new StoreDocumentMarqoRequest(documents, ["title", "summary"]);
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync($"{marqoHost}/indexes/{index}/documents", content);
+
+                // this was a failed attempt to use "useExistingTensors = true" to avoid reindexing everything
+                // it threw a 500 error so i'd fallback, but it did it for every row so i'm not using it anymore 
+                    
+                // if the summary has changed and we're not re-indexing, it'll throw an exception. in this case re-index
+                // if (!response.IsSuccessStatusCode && response.StatusCode == HttpStatusCode.InternalServerError &&
+                //     !reindexExisting)
+                // {
+                //     Console.WriteLine("Chunks don't match, attempting re-indexing..");
+                //     requestBody = requestBody with { useExistingTensors = false };
+                //     json = JsonSerializer.Serialize(requestBody);
+                //     content = new StringContent(json, Encoding.UTF8, "application/json");
+                //     response = await client.PostAsync($"{marqoHost}/indexes/{index}/documents", content);
+                // }
+
+                response.EnsureSuccessStatusCode();
+
+                Console.WriteLine($"Successfully updated/uploaded {documents.Count} documents");
+            }         
+            offset++;
+            documents = allDocuments.Skip(offset * batch).Take(batch).ToList();
         }
     }
-    private static async Task<List<Hit>> QueryMarqo(string marqoHost, string index, string query, int offset)
+    private static async Task<List<Hit>> QueryMarqo(ApiSettings apiSettings, string query, int offset)
     {
-        using var client = new HttpClient();
+        var marqoHost = apiSettings.MarqoHost;
+        var index = apiSettings.MarqoIndex;
+
+        using var client = GetMarqoClient(apiSettings);
+
         var requestBody = new
         {
             q = query,
@@ -496,13 +542,17 @@ class Program
 
         markdown = markdown.Replace("\r", "");
         markdown = Regex.Replace(markdown, "(?<!\n)\n(?!\n)", "\n\n\n");
-        
-        Displayer.DisplayMarkdown(markdown, new Uri(AppContext.BaseDirectory, UriKind.Absolute), allowFollowingLinks: false);
 
+        Displayer.DisplayMarkdown(markdown, new Uri(AppContext.BaseDirectory, UriKind.Absolute), allowFollowingLinks: false);
     }
-    private static async Task<MarqoStats?> GetIndexStats(string marqoHost, string index)
+
+    private static async Task<MarqoStats?> GetIndexStats(ApiSettings apiSettings)
     {
-        using var client = new HttpClient();
+        string marqoHost = apiSettings.MarqoHost;
+        string index = apiSettings.MarqoIndex;
+
+        using var client = GetMarqoClient(apiSettings);
+
         var response = await client.GetAsync($"{marqoHost}/indexes/{index}/stats");
         response.EnsureSuccessStatusCode();
 
@@ -510,9 +560,10 @@ class Program
         var results = JsonSerializer.Deserialize<MarqoStats>(responseBody, JsonSerializerOptions);
         return results;
     }
-    private static async Task<string[]> GetIndexList(string marqoHost)
+    private static async Task<string[]> GetIndexList(ApiSettings apiSettings)
     {
-        using var client = new HttpClient();
+        string marqoHost = apiSettings.MarqoHost;
+        using var client = GetMarqoClient(apiSettings);
 
         var response = await client.GetAsync(marqoHost + "/indexes");
         response.EnsureSuccessStatusCode();
