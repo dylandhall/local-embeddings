@@ -16,4 +16,10 @@
     <PackageReference Include="Octokit" Version="13.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="github-settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

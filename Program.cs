@@ -78,6 +78,8 @@ class Program
 
         // Example query
 
+        var githubSettings = await GithubSettings.ReadSettings();
+
         Console.WriteLine("Search the issue database:");
         var queryText = Console.ReadLine()??string.Empty;
         var offset = 0;
@@ -116,7 +118,7 @@ class Program
 
                     WriteMarkdown($"## {selected.Title}{Environment.NewLine}{Environment.NewLine}{selected.Summary}");
                     Console.WriteLine();
-                    Console.WriteLine($"Issue location https://github.com/{GithubIssueDownloader.Owner}/{GithubIssueDownloader.Repo}/issues/{selected.Id}");
+                    Console.WriteLine($"Issue location https://github.com/{githubSettings.Owner}/{githubSettings.Repo}/issues/{selected.Id}");
                     Console.WriteLine();
                     
                     Console.WriteLine(IssueOptions);

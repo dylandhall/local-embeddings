@@ -5,20 +5,18 @@ namespace LocalEmbeddings;
 public static class GithubIssueDownloader
 {
     
-    public const string Owner = "mathspathway";
-    public const string Repo = "app";
-    public const string GitHubToken = "";
-
     public static async Task GetIssues(string folder)
     {
         if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
 
+        var settings = await GithubSettings.ReadSettings();
+
         var client = new GitHubClient(new ProductHeaderValue("GitHubIssueDownloader"))
         {
-            Credentials = new Credentials(GitHubToken)
+            Credentials = new Credentials(settings.GitHubToken)
         };
 
-        await GetAllIssues(client, Owner, Repo, folder);
+        await GetAllIssues(client, settings.Owner, settings.Repo, folder);
 
     }
     
