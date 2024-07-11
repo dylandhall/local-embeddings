@@ -486,7 +486,7 @@ public class State :  IState
 
         if (isDefaultAllowed)
         {
-            var key = Console.ReadKey().Key;
+            var key = Console.ReadKey(intercept:true).Key;
 
             return actions.TryGetValue(key, out var action)
                 ? action.action
