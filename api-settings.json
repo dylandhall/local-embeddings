@@ -1,1 +1,1 @@
-{"ApiUrl":"http://localhost:1234/v1","ApiKey":"lm-studio","Model":"legraphista/Gemma-2-9B-It-SPPO-Iter3-IMat-GGUF","MarqoHost":"http://localhost:8882","MarqoIndex":"app-issues-summarised","MarqoModel":"sentence-transformers/all-MiniLM-L6-v2","MarqoApiKey":null}
+{"ApiUrl":"http://localhost:1234/v1","ApiKey":"lm-studio","Model":"legraphista/Gemma-2-9B-It-SPPO-Iter3-IMat-GGUF","MarqoHost":"http://localhost:8882","MarqoIndex":"app-issues-summarised","MarqoModel":"sentence-transformers/all-MiniLM-L6-v2","LocalFolder":"C:\\temp\\issues","MarqoApiKey":null}

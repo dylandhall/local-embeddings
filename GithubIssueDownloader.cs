@@ -2,24 +2,34 @@
 
 namespace LocalEmbeddings;
 
-public static class GithubIssueDownloader
+public interface IMarkdownFileDownloader
 {
-    public static async Task GetIssues(string folder)
+    Task GetIssues(string folder);
+}
+
+public class GithubIssueDownloader : IMarkdownFileDownloader
+{
+    private readonly GithubSettings _githubSettings;
+
+    public GithubIssueDownloader(GithubSettings githubSettings)
+    {
+        _githubSettings = githubSettings;
+    }
+
+    public async Task GetIssues(string folder)
     {
         if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
 
-        var settings = await GithubSettings.ReadSettings();
-
         var client = new GitHubClient(new ProductHeaderValue("GitHubIssueDownloader"))
         {
-            Credentials = new Credentials(settings.GitHubToken)
+            Credentials = new Credentials(_githubSettings.GitHubToken)
         };
 
-        await GetAllIssues(client, settings.Owner, settings.Repo, folder);
+        await GetAllIssues(client, _githubSettings.Owner, _githubSettings.Repo, folder);
 
     }
     
-    private static async Task GetAllIssues(GitHubClient client, string owner, string repo, string folder)
+    private async Task GetAllIssues(GitHubClient client, string owner, string repo, string folder)
     {
         var issueRequest = new RepositoryIssueRequest { State = ItemStateFilter.All, SortDirection = SortDirection.Descending, SortProperty = IssueSort.Created };
 
