@@ -7,9 +7,6 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        
-
-        
         var doRefresh = args.Any(a => a.Contains("--refresh", StringComparison.OrdinalIgnoreCase));
         var reindexExisting = args.Any(a => a.Contains("--reindex", StringComparison.OrdinalIgnoreCase));
 
@@ -29,8 +26,6 @@ class Program
 
         var services = new ServiceCollection();
         await ConfigureServices(services, doRefresh, reindexExisting);
-
-        Console.WriteLine("Search the issue database:");
 
         await using var serviceProvider = services.BuildServiceProvider();
         using var scope = serviceProvider.CreateScope();

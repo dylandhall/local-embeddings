@@ -17,8 +17,18 @@ You can then search and ask questions about them.
 ```
 Run with --refresh to refresh issues, summarise and index, add --reindex to reindex existing summaries
 
-Search the issue database:
 Index initialized successfully.
+Marqo server status:
+Backend: Memory 1.73%, Storage 8.67%
+
+Current Marqo indexes:
+app-issues-summarised
+app-issues
+app-issues-new
+
+Current index: app-issues-summarised
+Documents: 8507, Vectors: 46526
+
 Search the issue database or hit enter to close:
 student unable to log in
 

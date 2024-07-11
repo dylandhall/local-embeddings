@@ -318,7 +318,7 @@ public class State :  IState
 
         return _refresh
             ? CurrentState.Refreshing
-            : CurrentState.InitialSearch;
+            : CurrentState.ShowStats;
     }
 
     private async IAsyncEnumerable<FileSummary> GetFileDataAndSaveSummary(IEnumerable<string> files,
