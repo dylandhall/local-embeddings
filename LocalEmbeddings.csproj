@@ -9,15 +9,19 @@
 
   <ItemGroup>
     <PackageReference Include="AsyncEnumerable.Portable" Version="4.1.1" />
+    <PackageReference Include="BoxOfYellow.ConsoleMarkdownRenderer" Version="0.6.0" />
     <PackageReference Include="Dumpify" Version="0.6.6" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.15.1" />
-    <PackageReference Include="Microsoft.SemanticKernel.Abstractions" Version="1.15.1" />
-    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Chroma" Version="1.15.1-alpha" />
     <PackageReference Include="Octokit" Version="13.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="github-settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="github-settings-example.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="api-settings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

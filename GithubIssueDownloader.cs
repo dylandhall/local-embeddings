@@ -4,7 +4,6 @@ namespace LocalEmbeddings;
 
 public static class GithubIssueDownloader
 {
-    
     public static async Task GetIssues(string folder)
     {
         if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);

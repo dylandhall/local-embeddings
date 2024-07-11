@@ -6,10 +6,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using ConsoleMarkdownRenderer;
+using ConsoleMarkdownRenderer.ObjectRenderers;
 using Dasync.Collections;
 using LocalEmbeddings;
-
-
+using Markdig.Syntax;
 
 class Program
 {
@@ -17,13 +18,8 @@ class Program
 
     static async Task Main(string[] args)
     {
-        const string apiUrl = "http://localhost:1234/v1";
-        const string apiKey = "lm-studio";
-        const string model = "legraphista/Gemma-2-9B-It-SPPO-Iter3-IMat-GGUF";
-        const string marqoHost = "http://localhost:8882";
-        const string marqoIndex = "app-issues-summarised";
-        const string marqoModel = "sentence-transformers/all-MiniLM-L6-v2";
-
+        var apiSettings = await ApiSettings.ReadSettings();
+        
         var doRefresh = args.Any(a => a.Contains("--refresh", StringComparison.OrdinalIgnoreCase));
         var reindexExisting = args.Any(a => a.Contains("--reindex", StringComparison.OrdinalIgnoreCase));
 
@@ -35,7 +31,7 @@ class Program
         
         if (doRefresh)
         {
-            await InitializeMarqoIndex(marqoHost, marqoIndex, marqoModel);
+            await InitializeMarqoIndex(apiSettings.MarqoHost, apiSettings.MarqoIndex, apiSettings.MarqoModel);
 
             string folderPath = @"C:\temp\issues";
 
@@ -43,11 +39,11 @@ class Program
 
             var files = Directory.GetFiles(folderPath, "*.markdown");
 
-            var documents = await GetFileDataAndSaveSummary(files)
+            var documents = await GetFileDataAndSaveSummary(files, apiSettings)
                 .Select(v => new Document(Path.GetFileNameWithoutExtension(v.file), v.file, v.content, v.title, v.summary))
                 .ToListAsync();
 
-            await StoreEmbeddingsInMarqo(documents, marqoHost, marqoIndex, reindexExisting);
+            await StoreEmbeddingsInMarqo(documents, apiSettings.MarqoHost, apiSettings.MarqoIndex, reindexExisting);
         }
         else
         {
@@ -55,7 +51,7 @@ class Program
             Console.WriteLine();
         }
 
-        var stats = await GetIndexStats(marqoHost, marqoIndex);
+        var stats = await GetIndexStats(apiSettings.MarqoHost, apiSettings.MarqoIndex);
 
         if (stats is {Backend: not null})
         {
@@ -65,33 +61,33 @@ class Program
         }
             
         
-        var indexes = await GetIndexList(marqoHost);
+        var indexes = await GetIndexList(apiSettings.MarqoHost);
 
         Console.WriteLine("Current Marqo indexes:");
         foreach (var index in indexes)
             Console.WriteLine(index);
         Console.WriteLine();
-        Console.WriteLine($"Current index: {marqoIndex}");
+        Console.WriteLine($"Current index: {apiSettings.MarqoIndex}");
         if (stats is not null) 
             Console.WriteLine($"Documents: {stats.NumberOfDocuments}, Vectors: {stats.NumberOfVectors}");
         Console.WriteLine();
 
-        // Example query
-
         var githubSettings = await GithubSettings.ReadSettings();
 
         Console.WriteLine("Search the issue database:");
+
         var queryText = Console.ReadLine()??string.Empty;
         var offset = 0;
+
         while (!string.IsNullOrWhiteSpace(queryText))
         {
             Console.WriteLine("Querying..");
             Console.WriteLine();
 
-            var topMatches = await QueryMarqo(marqoHost, marqoIndex, queryText, offset);
+            var topMatches = await QueryMarqo(apiSettings.MarqoHost, apiSettings.MarqoIndex, queryText, offset);
 
             var summaryToQuery = queryText;
-            var summaryTask = new Lazy<Task<string>>(() => GetSummaryOfMatches(summaryToQuery, topMatches, apiUrl, apiKey, model));
+            var summaryTask = new Lazy<Task<string>>(() => GetSummaryOfMatches(summaryToQuery, topMatches, apiSettings.ApiUrl, apiSettings.ApiKey, apiSettings.Model));
             WriteIssuesMenu(topMatches);
             var key = Console.ReadKey();
 
@@ -128,7 +124,7 @@ class Program
                         switch (actionKey.Key)
                         {
                             case ConsoleKey.Q:
-                                await AskQuestionsAboutIssue(selected, apiUrl, apiKey, model);
+                                await AskQuestionsAboutIssue(selected, apiSettings.ApiUrl, apiSettings.ApiKey, apiSettings.Model);
                                 break;
                             case ConsoleKey.R:
                                 queryText = selected.Title + " " + selected.Summary;
@@ -160,7 +156,7 @@ class Program
         return;
 
         // todo: we're not really taking advantage of concurrency here
-        static async IAsyncEnumerable<(string file, string content, string title, string summary)> GetFileDataAndSaveSummary(IEnumerable<string> files, int llmConcurrency = 1)
+        static async IAsyncEnumerable<(string file, string content, string title, string summary)> GetFileDataAndSaveSummary(IEnumerable<string> files, ApiSettings apiSettings, int llmConcurrency = 1)
         {
             var semaphore = new SemaphoreSlim(llmConcurrency);
             var sw = new Stopwatch();
@@ -185,7 +181,7 @@ class Program
                 Console.WriteLine("Creating summary for " + file);
                 try
                 {
-                    var summary = await GetSummary(content, apiUrl, apiKey, model);
+                    var summary = await GetSummary(content, apiSettings.ApiUrl, apiSettings.ApiKey, apiSettings.Model);
                     await File.WriteAllTextAsync(summaryFile, summary);
 
                     sw.Stop();
@@ -357,7 +353,7 @@ class Program
                     new 
                     {
                         role = "user",
-                        content = text.Replace("\n", " ").Replace("\r", " ")
+                        content = text.Replace("\n", " ").Replace("\r", "")
                     }
                 },
                 model,
@@ -380,7 +376,7 @@ class Program
     {
         return [
             new Message("system", "You are a helpful assistant who specialises in answering questions about github issues, which include details of features for an educational software package. Answer the question as best you can with the details in the issue, as succinctly as possible, without adding anything you are unsure about"),
-            new Message("user", $"Question: {question}\n Issue: {issueBody.Replace("\n", " ").Replace("\r", " ")}")
+            new Message("user", $"Question: {question}\n Issue: {issueBody.Replace("\n", " ").Replace("\r", "")}")
         ];
     }
 
@@ -497,54 +493,12 @@ class Program
     private static void WriteMarkdown(string markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown)) return;
-        markdown = markdown.Replace("\r\n", "\n\n");
-        markdown = Regex.Replace(markdown, "(?<!\n)\n(?!\n)", "\n\n");
-        markdown = Regex.Replace(markdown, "(?<!\n)\n(?!\n)", "\n\n");
-        // Save markdown content to a temporary file
-        string tempMarkdownPath = "temp.md";
-        File.WriteAllText(tempMarkdownPath, markdown);
 
-        // Prepare PowerShell command
-        string powerShellCommand = $"Show-Markdown -Path \"{tempMarkdownPath}\"";
+        markdown = markdown.Replace("\r", "");
+        markdown = Regex.Replace(markdown, "(?<!\n)\n(?!\n)", "\n\n\n");
+        
+        Displayer.DisplayMarkdown(markdown, new Uri(AppContext.BaseDirectory, UriKind.Absolute), allowFollowingLinks: false);
 
-        // Setup process start information
-        ProcessStartInfo startInfo = new ProcessStartInfo
-        {
-            FileName = "pwsh", // PowerShell Core executable
-            Arguments = $"-NoProfile -Command \"{powerShellCommand}\"",
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        // Start the process
-        using (Process process = new Process { StartInfo = startInfo })
-        {
-            process.OutputDataReceived += (sender, e) =>
-            {
-                if (e.Data != null)
-                {
-                    Console.WriteLine(e.Data);
-                }
-            };
-
-            process.ErrorDataReceived += (sender, e) =>
-            {
-                if (e.Data != null)
-                {
-                    Console.WriteLine("ERROR: " + e.Data);
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.WaitForExit();
-        }
-
-        // Clean up temporary file
-        File.Delete(tempMarkdownPath);
     }
     private static async Task<MarqoStats?> GetIndexStats(string marqoHost, string index)
     {
