@@ -160,7 +160,7 @@ public class State :  IState
         WriteMarkdown($"## {issue.Title}{Environment.NewLine}{Environment.NewLine}{issue.Summary}");
 
         var url = _markdownFileDownloader.GetUrlForDocument(issue.Id);
-        if (!string.IsNullOrWhiteSpace(url)) Console.WriteLine(url);
+        if (!string.IsNullOrWhiteSpace(url)) Console.WriteLine("Location: " + url + Environment.NewLine);
         
         var actionFromKey = GetActionFromKey(new()
         {
