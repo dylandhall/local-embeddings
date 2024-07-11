@@ -88,13 +88,13 @@ Any other key to to start a new search
 Summarising, please wait..
 Here's a summary of the issues, focusing on their relevance to a "student unable to log in" search:                                                                                                                                                                                                                
 * Student Logout After Login (2020-09-14): Students log in successfully but are immediately logged out after attempting to access their timelines.  Relates to search: This is a direct bug causing login failure, though it occurs after the initial login succeeds.
-* Student Login Failure (2017-09-13): Year 9 students at Bendigo South East School experience a login loop where the loading icon persists. Relates to search:  A classic login failure bug, preventing access entirely.
+* Student Login Failure (2017-09-13): Year 9 students at Specific School experience a login loop where the loading icon persists. Relates to search:  A classic login failure bug, preventing access entirely.
 * Student Login Not Working (2018-10-04): The student login button in Teacher-Web redirects to an incorrect URL instead of authenticating.  Relates to search: Broken login functionality, preventing students from starting the process.
-* Student Login Inconsistency (2019-02-05): Leah Appleton's account redirects to the class login page instead of her dashboard. Relates to search: Data inconsistency causing a failed login experience.
-* Teacher Instant Logout (2019-01-25): Erin Meckenstock is immediately logged out regardless of login method.  Not directly related: Focuses on teacher login, not student.
+* Student Login Inconsistency (2019-02-05): Person's account redirects to the class login page instead of her dashboard. Relates to search: Data inconsistency causing a failed login experience.
+* Teacher Instant Logout (2019-01-25): Specific Person is immediately logged out regardless of login method.  Not directly related: Focuses on teacher login, not student.
 * Students with Year Level 11 or 12 can't log in (2016-03-04):  Year 11 and 12 students cannot log in due to a missing year level in a function handling module counts. Relates to search: Specific bug preventing login for certain student groups.
 * Teacher Login Failure (2022-05-16): Teachers cannot log in through Watto or the web interface due to a 502 error from the Token API.  Not directly related: Focuses on teacher login, not student.
-* Student Missing from Class Login Page (2017-11-21): Mikayla Halstead was temporarily missing from the class login page but resolved itself. Relates to search: Shows a scenario where a student appeared absent from the login process, though temporary.
+* Student Missing from Class Login Page (2017-11-21): Specific Person was temporarily missing from the class login page but resolved itself. Relates to search: Shows a scenario where a student appeared absent from the login process, though temporary.
 Overall Relationship to Search:
 Many of these issues directly relate to students being unable to log in due to bugs or configuration problems.  The "Student Logout After Login" issue is particularly relevant as it describes a successful login followed by immediate logout, which could be misinterpreted as an inability to log in initially.
 

@@ -59,16 +59,5 @@ public interface IProgramSettings
     bool Reindex { get; }
 }
 
-public class ProgramSettings : IProgramSettings
-{
-    public ProgramSettings(bool refresh, bool reindex)
-    {
-        Refresh = refresh;
-        Reindex = reindex;
-    }
-
-    public bool Refresh { get; }
-    public bool Reindex { get; }
-}
-
+public record ProgramSettings(bool Refresh, bool Reindex) : IProgramSettings;
 

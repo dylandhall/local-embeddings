@@ -61,7 +61,7 @@ public class State :  IState
             CurrentState.GettingChatCompletion => await GetChatCompletion(),
             CurrentState.GettingChatCompletionForSummary => await GetSummaryChatCompletion(),
             CurrentState.AskingQuestions => AskAnotherQuestionAboutCurrentIssue(),
-            CurrentState.AskFollowOnQuestionAboutSummary => AskAnotherQuestionAboutCurrentIssue(),
+            CurrentState.AskFollowOnQuestionAboutSummary => AskAnotherQuestionAboutSummary(),
             _ => throw new ArgumentOutOfRangeException()
         };
 
@@ -398,8 +398,6 @@ public class State :  IState
     }
 
     private record FileSummary(string File, string Content, string Title, string Summary);
-
-
 
     private static void WriteIssuesMenu(List<Hit> topMatches)
     {
