@@ -5,6 +5,7 @@ namespace LocalEmbeddings;
 public interface IMarkdownFileDownloader
 {
     Task GetIssues(string folder);
+    string GetUrlForDocument(string id);
 }
 
 public class GithubIssueDownloader : IMarkdownFileDownloader
@@ -28,7 +29,10 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
         await GetAllIssues(client, _githubSettings.Owner, _githubSettings.Repo, folder);
 
     }
-    
+
+    public string GetUrlForDocument(string id) =>
+        $"https://github.com/{_githubSettings.Owner}/{_githubSettings.Repo}/issues/{id}";
+
     private async Task GetAllIssues(GitHubClient client, string owner, string repo, string folder)
     {
         var issueRequest = new RepositoryIssueRequest { State = ItemStateFilter.All, SortDirection = SortDirection.Descending, SortProperty = IssueSort.Created };

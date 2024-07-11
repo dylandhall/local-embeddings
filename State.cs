@@ -158,6 +158,10 @@ public class State :  IState
     {
         var issue = TopMatches[_selectedMatch!.Value];
         WriteMarkdown($"## {issue.Title}{Environment.NewLine}{Environment.NewLine}{issue.Summary}");
+
+        var url = _markdownFileDownloader.GetUrlForDocument(issue.Id);
+        if (!string.IsNullOrWhiteSpace(url)) Console.WriteLine(url);
+        
         var actionFromKey = GetActionFromKey(new()
         {
             { ConsoleKey.Q, (ActionEnum.Question, "ask a question about the current issue") },
