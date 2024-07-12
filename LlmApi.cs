@@ -41,7 +41,7 @@ public class LlmApi: ILlmApi
                 new
                 {
                     role="system",
-                    content="You are going to be given github issue, which specifies a feature or describes a bug for an educational software package called maths pathway. You are required to summarise it for later searching. You need to include the names of the affected parts of the system and a short but detailed summary of the things that are being changed in the ticket. Try as hard as possible to include all detail without including extraneous or generic details."
+                    content=LlmPrompts.LlmPromptToSummariseDocument
                 },
                 new 
                 {

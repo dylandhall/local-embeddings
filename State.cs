@@ -40,8 +40,6 @@ public class State :  IState
         SummaryOfMatches = new Lazy<Task<string>>(() => Task.FromResult(string.Empty));
     }
 
-
-
     public async Task UpdateAndProcess()
     {
         CurrentState = CurrentState switch
@@ -311,7 +309,7 @@ public class State :  IState
             .Select(v => new Document(Path.GetFileNameWithoutExtension(v.File), v.File, v.Content, v.Title, v.Summary))
             .ToListAsync();
 
-        await _vectorVectorDb.StoreEmbeddings(documents, _apiSettings, _reindex);
+        await _vectorVectorDb.StoreEmbeddings(documents, _reindex);
 
         return CurrentState.InitialSearch;
     }
@@ -512,13 +510,13 @@ public class State :  IState
 
     private void UpdateConversationWithNewIssueQuestion(string question, string issueBody)
     {
-        var content = $"I'm going to give you document, and I need you to answer the following question: {question}\n Issue: {issueBody.Replace("\n", " ").Replace("\r", "")}";
+        var content = $"{LlmPrompts.PromptToAnswerQuestionAboutDocument}: {question}\n Document: {issueBody.Replace("\n", " ").Replace("\r", "")}";
         UpdateConversationWithQuestion(content);
     }
 
     private void UpdateConversationWithSummaryQuestion(string question, string issueBody)
     {
-        var content = $"I'm going to give you set of issues, and I need you to answer the following question about them: {question}\n Issue: {issueBody.Replace("\n", " ").Replace("\r", "")}";
+        var content = $"{LlmPrompts.PromptToAnswerQuestionAboutSummary}: {question}\n Issue: {issueBody.Replace("\n", " ").Replace("\r", "")}";
         UpdateConversationWithQuestion(content);
     }
 
@@ -545,7 +543,7 @@ public class State :  IState
     private static Message[] GetInitialQuestionMessage()
     {
         return [
-            new Message("system", "You are a helpful assistant who specialises in answering questions about design documents, which include details of features for an educational software package. Answer the question as best you can with the details in the issue, as succinctly as possible, without adding anything you are unsure about"),
+            new Message("system", LlmPrompts.SystemMessageBeforeAnsweringQuestions),
         ];
     }
 }

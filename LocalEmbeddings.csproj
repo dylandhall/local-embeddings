@@ -27,4 +27,19 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Update="LlmPrompts.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>LlmPrompts.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="LlmPrompts.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>LlmPrompts.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>

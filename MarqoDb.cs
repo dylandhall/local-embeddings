@@ -9,7 +9,7 @@ namespace LocalEmbeddings;
 
 public interface IVectorDb: IDisposable
 {
-    Task StoreEmbeddings(List<Document> allDocuments, ApiSettings apiSettings, bool reindexExisting);
+    Task StoreEmbeddings(List<Document> allDocuments, bool reindexExisting);
     Task<List<Hit>> Query(string query, int offset);
     Task InitializeIndex();
     Task<IndexStats?> GetIndexStats();
@@ -46,10 +46,10 @@ public class MarqoDb : IVectorDb
         }
     }
 
-    public async Task StoreEmbeddings(List<Document> allDocuments, ApiSettings apiSettings, bool reindexExisting)
+    public async Task StoreEmbeddings(List<Document> allDocuments, bool reindexExisting)
     {
-        var marqoHost = apiSettings.MarqoHost;
-        var index = apiSettings.MarqoIndex;
+        var marqoHost = _apiSettings.MarqoHost;
+        var index = _apiSettings.MarqoIndex;
 
         const int batch = 25;
         var documents = allDocuments.Take(batch).ToList();
