@@ -3,9 +3,9 @@ namespace LocalEmbeddings;
 public interface IConversationManager
 {
     
-    void UpdateConversationWithNewIssueQuestion(string question, string issueBody);
+    void UpdateConversationWithDocumentQuestion(string question, string issueBody);
     void UpdateConversationWithSummaryQuestion(string question, string issueBody);
-    void  UpdateConversationWithQuestion(string content);
+    void UpdateConversationWithQuestion(string content);
     void ResetConversation();
     Task<string> GetCompletionForCurrentConversation();
 }
@@ -26,7 +26,7 @@ public class ConversationManager(ILlmApi llmApi) : IConversationManager
         }
     }
     
-    public void UpdateConversationWithNewIssueQuestion(string question, string issueBody)
+    public void UpdateConversationWithDocumentQuestion(string question, string issueBody)
     {
         var content = $"{LlmPrompts.PromptToAnswerQuestionAboutDocument}: {question}\n Document: {issueBody.Replace("\n", " ").Replace("\r", "")}";
         UpdateConversationWithQuestion(content);

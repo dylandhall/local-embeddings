@@ -32,9 +32,7 @@ class Program
         var state = scope.ServiceProvider.GetRequiredService<IState>();
 
         while (state is not { CurrentState: CurrentState.Finished })
-        {
             await state.UpdateAndProcess();
-        }
     }
 
     private static async Task ConfigureServices(ServiceCollection services, bool doRefresh, bool reindexExisting)

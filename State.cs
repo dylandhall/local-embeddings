@@ -100,7 +100,7 @@ public class State(
 
         string issueBody = selected.Content;
 
-        conversationManager.UpdateConversationWithNewIssueQuestion(questionText, issueBody);
+        conversationManager.UpdateConversationWithDocumentQuestion(questionText, issueBody);
 
         return CurrentState.GettingChatCompletion;
     }

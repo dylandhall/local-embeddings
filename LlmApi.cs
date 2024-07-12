@@ -37,19 +37,28 @@ public class LlmApi : ILlmApi
 
     public async Task<(string, Message[])> GetCompletion(Message[] messages)
     {
-        var requestBody = new { messages, _apiSettings.Model };
+        try
+        {
+            var requestBody = new { messages, _apiSettings.Model };
 
-        var json = JsonSerializer.Serialize(requestBody);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var json = JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await Client.PostAsync($"{_apiSettings.ApiUrl}/chat/completions", content);
-        response.EnsureSuccessStatusCode();
+            var response = await Client.PostAsync($"{_apiSettings.ApiUrl}/chat/completions", content);
+            response.EnsureSuccessStatusCode();
 
-        var responseBody = await response.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<ChatCompletion>(responseBody, JsonSerializerOptions);
+            var responseBody = await response.Content.ReadAsStringAsync();
+            var responseData = JsonSerializer.Deserialize<ChatCompletion>(responseBody, JsonSerializerOptions);
 
-        if (responseData is {Choices.Count: > 0}) messages = messages.Append(responseData.Choices[0].Message).ToArray();
-        return (responseData?.Choices[0].Message.Content??string.Empty, messages);
+            if (responseData is { Choices.Count: > 0 })
+                messages = messages.Append(responseData.Choices[0].Message).ToArray();
+            return (responseData?.Choices[0].Message.Content ?? string.Empty, messages);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            return (string.Empty, []);
+        }
     }
 
 
@@ -69,8 +78,6 @@ public record ChatCompletion(
     List<Choice> Choices,
     Usage Usage);
 
-
 public record Choice(int Index, Message Message, string FinishReason);
-
 
 public record Usage(int PromptTokens, int CompletionTokens, int TotalTokens);
