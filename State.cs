@@ -13,40 +13,37 @@ public interface IState
     CurrentState CurrentState { get; }
 }
 
-public class State :  IState
+public class State(
+    ApiSettings apiSettings,
+    IVectorDb vectorDb,
+    IProgramSettings args,
+    IMarkdownFileDownloader markdownFileDownloader,
+    IConversationManager conversationManager,
+    ISummaryManager summaryManager)
+    : IState
 {
     private const int NumberOfResultsPerPage = 8;
     public CurrentState CurrentState { get; private set; } = CurrentState.Starting;
 
-    private readonly ApiSettings _apiSettings;
-    private readonly IMarkdownFileDownloader _markdownFileDownloader;
-    private readonly bool _refresh;
-    private readonly bool _reindex;
-    private readonly IVectorDb _vectorVectorDb;
-    private readonly IConversationManager _conversationManager;
-    private readonly ISummaryManager _summaryManager;
+    private readonly bool _refresh = args.Refresh;
+    private readonly bool _reindex = args.Reindex;
     private Query CurrentQuery { get; set; } = new(string.Empty, 0);
 
     private int? _selectedMatch;
     private List<Hit> _topMatches = new();
 
-    public State(
-        ApiSettings apiSettings,
-        IVectorDb vectorDb,
-        IProgramSettings args,
-        IMarkdownFileDownloader markdownFileDownloader,
-        IConversationManager conversationManager,
-        ISummaryManager summaryManager)
+    private List<Hit> TopMatches
     {
-        _apiSettings = apiSettings;
-        _refresh = args.Refresh;
-        _reindex = args.Reindex;
-        _markdownFileDownloader = markdownFileDownloader;
-        _conversationManager = conversationManager;
-        _summaryManager = summaryManager;
-        _vectorVectorDb = vectorDb;
-        SummaryOfMatches = new Lazy<Task<string>>(() => Task.FromResult(string.Empty));
+        get => _topMatches;
+        set
+        {
+            _topMatches = value;
+            _selectedMatch = null;
+            SummaryOfMatches =
+                new Lazy<Task<string>>(() => summaryManager.GetSummaryOfMatches(CurrentQuery.QueryText, TopMatches));
+        }
     }
+    private Lazy<Task<string>> SummaryOfMatches { get; set; } = new(() => Task.FromResult(string.Empty));
 
     public async Task UpdateAndProcess()
     {
@@ -73,26 +70,11 @@ public class State :  IState
 
     }
 
-    private List<Hit> TopMatches
-    {
-        get => _topMatches;
-        set
-        {
-            _topMatches = value;
-            _selectedMatch = null;
-            SummaryOfMatches =
-                new Lazy<Task<string>>(() => _summaryManager.GetSummaryOfMatches(CurrentQuery.QueryText, TopMatches));
-        }
-    }
-    private Lazy<Task<string>> SummaryOfMatches { get; set; }
-
-
-
     private async Task<CurrentState> GetChatCompletion()
     {
         Console.WriteLine("Querying, please wait..");
         Console.WriteLine();
-        var reply = await _conversationManager.GetCompletionForCurrentConversation();
+        var reply = await conversationManager.GetCompletionForCurrentConversation();
         WriteMarkdown(reply);
         Console.WriteLine();
         return CurrentState.AskingQuestions;
@@ -101,7 +83,7 @@ public class State :  IState
     {
         Console.WriteLine("Querying, please wait..");
         Console.WriteLine();
-        var reply = await _conversationManager.GetCompletionForCurrentConversation();
+        var reply = await conversationManager.GetCompletionForCurrentConversation();
         WriteMarkdown(reply);
         Console.WriteLine();
         return CurrentState.AskFollowOnQuestionAboutSummary;
@@ -118,7 +100,7 @@ public class State :  IState
 
         string issueBody = selected.Content;
 
-        _conversationManager.UpdateConversationWithNewIssueQuestion(questionText, issueBody);
+        conversationManager.UpdateConversationWithNewIssueQuestion(questionText, issueBody);
 
         return CurrentState.GettingChatCompletion;
     }
@@ -130,7 +112,7 @@ public class State :  IState
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.Summary;
 
-        _conversationManager.UpdateConversationWithQuestion(questionText);
+        conversationManager.UpdateConversationWithQuestion(questionText);
 
         return CurrentState.GettingChatCompletion;
     }
@@ -142,7 +124,7 @@ public class State :  IState
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.SummarisedAllIssues;
 
-        _conversationManager.UpdateConversationWithSummaryQuestion(questionText, await SummaryOfMatches.Value);
+        conversationManager.UpdateConversationWithSummaryQuestion(questionText, await SummaryOfMatches.Value);
 
         return CurrentState.GettingChatCompletionForSummary;
     }
@@ -154,7 +136,7 @@ public class State :  IState
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.SummarisedAllIssues;
 
-        _conversationManager.UpdateConversationWithQuestion(questionText);
+        conversationManager.UpdateConversationWithQuestion(questionText);
 
         return CurrentState.GettingChatCompletionForSummary;
     }
@@ -165,7 +147,7 @@ public class State :  IState
         var issue = TopMatches[_selectedMatch!.Value];
         WriteMarkdown($"## {issue.Title}{Environment.NewLine}{Environment.NewLine}{issue.Summary}");
 
-        var url = _markdownFileDownloader.GetUrlForDocument(issue.Id);
+        var url = markdownFileDownloader.GetUrlForDocument(issue.Id);
         if (!string.IsNullOrWhiteSpace(url)) Console.WriteLine("Location: " + url + Environment.NewLine);
         
         var actionFromKey = GetActionFromKey(new()
@@ -177,7 +159,7 @@ public class State :  IState
         }, isDefaultAllowed: false);
 
         if (actionFromKey == ActionEnum.QuestionInNewConversation)
-            _conversationManager.ResetConversation();
+            conversationManager.ResetConversation();
 
         return actionFromKey switch
             {
@@ -214,7 +196,7 @@ public class State :  IState
         if (action == ActionEnum.Default) return CurrentState.SearchResults;
 
         if (action == ActionEnum.QuestionInNewConversation)
-            _conversationManager.ResetConversation();
+            conversationManager.ResetConversation();
 
         return CurrentState.AskQuestionAboutSummary;
     }
@@ -262,7 +244,7 @@ public class State :  IState
     {
         Console.WriteLine();
         Console.WriteLine("Searching, please wait..");
-        TopMatches = await _vectorVectorDb.Query(CurrentQuery.QueryText, CurrentQuery.Offset);
+        TopMatches = await vectorDb.Query(CurrentQuery.QueryText, CurrentQuery.Offset);
         Console.WriteLine();
         return TopMatches.Count > 0
             ? CurrentState.SearchResults
@@ -282,7 +264,7 @@ public class State :  IState
 
     private async Task<CurrentState> ShowStats()
     {
-        var stats = await _vectorVectorDb.GetIndexStats();
+        var stats = await vectorDb.GetIndexStats();
 
         if (stats is { Backend: not null })
         {
@@ -292,13 +274,13 @@ public class State :  IState
             Console.WriteLine();
         }
 
-        var indexes = await _vectorVectorDb.GetIndexList();
+        var indexes = await vectorDb.GetIndexList();
 
         Console.WriteLine("Current Marqo indexes:");
         foreach (var index in indexes)
             Console.WriteLine(index);
         Console.WriteLine();
-        Console.WriteLine($"Current index: {_apiSettings.MarqoIndex}");
+        Console.WriteLine($"Current index: {apiSettings.MarqoIndex}");
         if (stats is not null)
             Console.WriteLine($"Documents: {stats.NumberOfDocuments}, Vectors: {stats.NumberOfVectors}");
         Console.WriteLine();
@@ -309,22 +291,22 @@ public class State :  IState
     private async Task<CurrentState> RefreshDatabase()
     {
         Console.WriteLine("Syncing issues from github");
-        await _markdownFileDownloader.GetIssues(_apiSettings.LocalFolder);
+        await markdownFileDownloader.GetIssues(apiSettings.LocalFolder);
 
-        var files = Directory.GetFiles(_apiSettings.LocalFolder, "*.markdown");
+        var files = Directory.GetFiles(apiSettings.LocalFolder, "*.markdown");
 
-        var documents = await GetFileDataAndSaveSummary(files, _apiSettings)
+        var documents = await GetFileDataAndSaveSummary(files, apiSettings)
             .Select(v => new Document(Path.GetFileNameWithoutExtension(v.File), v.File, v.Content, v.Title, v.Summary))
             .ToListAsync();
 
-        await _vectorVectorDb.StoreEmbeddings(documents, _reindex);
+        await vectorDb.StoreEmbeddings(documents, _reindex);
 
         return CurrentState.InitialSearch;
     }
 
     private async Task<CurrentState> Start()
     {
-        await _vectorVectorDb.InitializeIndex();
+        await vectorDb.InitializeIndex();
 
         return _refresh
             ? CurrentState.Refreshing
@@ -380,7 +362,7 @@ public class State :  IState
         Console.WriteLine("Creating summary for " + file);
         try
         {
-            var summary = await _summaryManager.GetSummary(content);
+            var summary = await summaryManager.GetSummary(content);
 
             await File.WriteAllTextAsync(summaryFile, summary);
 
@@ -422,8 +404,6 @@ public class State :  IState
 
         sb.AppendLine();
         WriteMarkdown(sb.ToString());
-        // Console.WriteLine("Hit S to display a summary of these issues, or N to display the next page of results");
-        // Console.WriteLine("Any other key to start a new search");
     }
 
     private static (int? numberSelected, ActionEnum? action) GetActionOrNumberFromKey(
