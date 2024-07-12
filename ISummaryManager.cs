@@ -21,9 +21,9 @@ public class SummaryManager(ILlmApi llmApi) : ISummaryManager
             var (reply, _) = await llmApi.GetCompletion(messages);
             return reply;
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Cannot access llm server: {e.Message}");
+            Console.WriteLine(ex.Message);
             return string.Empty;
         }
     }
@@ -42,7 +42,7 @@ public class SummaryManager(ILlmApi llmApi) : ISummaryManager
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
+            Console.WriteLine(ex.Message);
             return string.Empty;
         }
     }
