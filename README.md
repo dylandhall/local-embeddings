@@ -6,7 +6,7 @@ Copy the `github-settings-example.json` to `github-settings.json` and fill out t
 
 The LLM layer and conversation layer are seperated out, as well as the prompt strings - copy `LlmPrompts.resx.example` to `LlmPrompts.resx` and customise the strings to your environment.
 
-Copy and paste this into the folder in a prompt:
+Copy and paste this into the folder in a prompt to copy the files if you're lazy and just want that done:
 
 ```
 cp github-settings-example.json github-settings.json
