@@ -398,3 +398,4 @@ FodyWeavers.xsd
 *.sln.iml
 /github-settings.json
 /api-settings.json
+LlmPrompts.resx
