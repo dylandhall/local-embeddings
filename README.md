@@ -13,7 +13,7 @@ cp github-settings-example.json github-settings.json
 cp LlmPrompts.resx.example LlmPrompts.resx
 ```
 
-It should be easy enough to just edit the resx strings, but the defaults should be fine too. I'd check mine in but I prime it with a bit of context about the issues that might not be appropriate in all environments.
+You can edit the resx strings in the XML with notepad or use an IDE, but the defaults should be fine too. I'd check mine in but I prime it with a bit of context about the issues that might not be appropriate in all environments.
 
 Install Marqo https://github.com/marqo-ai/marqo - I'm just using the local docker image, I haven't added any authentication. If you fill out the `MarqoApiKey` it should work with their cloud environment.
 
