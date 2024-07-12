@@ -4,14 +4,13 @@ using System.Text.Json;
 
 namespace LocalEmbeddings;
 
+
 public interface ILlmApi: IDisposable
 {
-    Task<string> GetSummary(string text);
-    Task<(string, Message[])> AnswerQuestionAboutIssue(Message[] messages);
-    Task<string> GetSummaryOfMatches(string search, List<Hit> matches);
+    Task<(string, Message[])> GetCompletion(Message[] messages);
 }
 
-public class LlmApi: ILlmApi
+public class LlmApi : ILlmApi
 {
     public LlmApi(ApiSettings apiSettings)
     {
@@ -32,42 +31,11 @@ public class LlmApi: ILlmApi
             return _client;
         }
     }
-    public async Task<string> GetSummary(string text)
-    {
-        var requestBody = new
-        {
-            messages = new[]
-            { 
-                new
-                {
-                    role="system",
-                    content=LlmPrompts.LlmPromptToSummariseDocument
-                },
-                new 
-                {
-                    role = "user",
-                    content = text.Replace("\n", " ").Replace("\r", "")
-                }
-            },
-            model = _apiSettings.Model,
-        };
-
-        var json = JsonSerializer.Serialize(requestBody);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        var response = await Client.PostAsync($"{_apiSettings.ApiUrl}/chat/completions", content);
-        response.EnsureSuccessStatusCode();
-
-        var responseBody = await response.Content.ReadAsStringAsync();
-        var responseData = JsonSerializer.Deserialize<ChatCompletion>(responseBody, JsonSerializerOptions);
-
-        return responseData?.Choices[0].Message.Content??string.Empty;
-    }
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
 
 
-    public async Task<(string, Message[])> AnswerQuestionAboutIssue(Message[] messages)
+    public async Task<(string, Message[])> GetCompletion(Message[] messages)
     {
         var requestBody = new { messages, _apiSettings.Model };
 
@@ -84,55 +52,6 @@ public class LlmApi: ILlmApi
         return (responseData?.Choices[0].Message.Content??string.Empty, messages);
     }
 
-    public async Task<string> GetSummaryOfMatches(string search, List<Hit> matches)
-    {
-        try 
-        {
-            var requestBody = new
-            {
-                //input = new[] { text.Replace("\n", " ").Replace("\r", " ") },
-                messages = new[]
-                    {
-                        new
-                        {
-                            role = "system",
-                            content =
-                                "You are a helpful assistant who searches through a database of issues for a user. The user will give you issues, then ask you a question, you will give a short summary to the user explaining how the issues relate to the user's search"
-                        },
-                    }.Concat(matches.Select(m =>
-                        new
-                        {
-                            role = "user",
-                            content = m.Summary
-                        }).ToArray())
-                    .Append(new
-                    {
-                        role = "user",
-                        content =
-                            "Please give a short summary of all of the above issues, with one bullet point per issue. Please also comment on how the issues relate to each other (particularly if they are bugs), and how they relate to this search: " +
-                            search
-                    }).ToArray(),
-                _apiSettings.Model,
-            };
-
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await Client.PostAsync($"{_apiSettings.ApiUrl}/chat/completions", content);
-
-            response.EnsureSuccessStatusCode();
-
-            var responseBody = await response.Content.ReadAsStringAsync();
-            var responseData = JsonSerializer.Deserialize<ChatCompletion>(responseBody, JsonSerializerOptions);
-
-            return responseData?.Choices[0].Message.Content ?? string.Empty;
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Cannot access llm server: {e.Message}");
-            return string.Empty;
-        }
-    }
 
     public void Dispose()
     {

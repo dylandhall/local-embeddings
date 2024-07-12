@@ -49,6 +49,8 @@ class Program
         services.AddScoped<IVectorDb, MarqoDb>();
         services.AddScoped<ILlmApi, LlmApi>();
         services.AddScoped<IState, State>();
+        services.AddTransient<IConversationManager, ConversationManager>();
+        services.AddSingleton<ISummaryManager, SummaryManager>();
         services.AddSingleton<IMarkdownFileDownloader, GithubIssueDownloader>();
     }
 }

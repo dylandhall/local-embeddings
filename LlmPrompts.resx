@@ -133,4 +133,10 @@
     <value>You are a helpful assistant who specialises in answering questions about design documents, which include details of features for an educational software package. Answer the question as best you can with the details in the issue, as succinctly as possible, without adding anything you are unsure about</value>
     <comment>Primes the LLM before any set of questions</comment>
   </data>
+  <data name="SystemMessageBeforeSummaryOfMatches" xml:space="preserve">
+    <value>You are a helpful assistant who searches through a database of issues for a user. The user will give you issues, then ask you a question, you will give a short summary to the user explaining how the issues relate to the user's search.</value>
+  </data>
+  <data name="UserPromptBeforeSummaryOfMatches" xml:space="preserve">
+    <value>Please give a short summary of all of the above issues, with one bullet point per issue. Please also comment on how the issues relate to each other (particularly if they are bugs), and how they relate to this search</value>
+  </data>
 </root>

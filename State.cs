@@ -23,19 +23,27 @@ public class State :  IState
     private readonly bool _refresh;
     private readonly bool _reindex;
     private readonly IVectorDb _vectorVectorDb;
-    private readonly ILlmApi _llmApi;
+    private readonly IConversationManager _conversationManager;
+    private readonly ISummaryManager _summaryManager;
     private Query CurrentQuery { get; set; } = new(string.Empty, 0);
 
     private int? _selectedMatch;
     private List<Hit> _topMatches = new();
 
-    public State(ApiSettings apiSettings, IVectorDb vectorDb, IProgramSettings args, IMarkdownFileDownloader markdownFileDownloader, ILlmApi llmApi)
+    public State(
+        ApiSettings apiSettings,
+        IVectorDb vectorDb,
+        IProgramSettings args,
+        IMarkdownFileDownloader markdownFileDownloader,
+        IConversationManager conversationManager,
+        ISummaryManager summaryManager)
     {
         _apiSettings = apiSettings;
         _refresh = args.Refresh;
         _reindex = args.Reindex;
         _markdownFileDownloader = markdownFileDownloader;
-        _llmApi = llmApi;
+        _conversationManager = conversationManager;
+        _summaryManager = summaryManager;
         _vectorVectorDb = vectorDb;
         SummaryOfMatches = new Lazy<Task<string>>(() => Task.FromResult(string.Empty));
     }
@@ -73,7 +81,7 @@ public class State :  IState
             _topMatches = value;
             _selectedMatch = null;
             SummaryOfMatches =
-                new Lazy<Task<string>>(() => _llmApi.GetSummaryOfMatches(CurrentQuery.QueryText, TopMatches));
+                new Lazy<Task<string>>(() => _summaryManager.GetSummaryOfMatches(CurrentQuery.QueryText, TopMatches));
         }
     }
     private Lazy<Task<string>> SummaryOfMatches { get; set; }
@@ -84,7 +92,7 @@ public class State :  IState
     {
         Console.WriteLine("Querying, please wait..");
         Console.WriteLine();
-        (var reply, Conversation) = await _llmApi.AnswerQuestionAboutIssue(Conversation!);
+        var reply = await _conversationManager.GetCompletionForCurrentConversation();
         WriteMarkdown(reply);
         Console.WriteLine();
         return CurrentState.AskingQuestions;
@@ -93,7 +101,7 @@ public class State :  IState
     {
         Console.WriteLine("Querying, please wait..");
         Console.WriteLine();
-        (var reply, Conversation) = await _llmApi.AnswerQuestionAboutIssue(Conversation!);
+        var reply = await _conversationManager.GetCompletionForCurrentConversation();
         WriteMarkdown(reply);
         Console.WriteLine();
         return CurrentState.AskFollowOnQuestionAboutSummary;
@@ -110,7 +118,7 @@ public class State :  IState
 
         string issueBody = selected.Content;
 
-        UpdateConversationWithNewIssueQuestion(questionText, issueBody);
+        _conversationManager.UpdateConversationWithNewIssueQuestion(questionText, issueBody);
 
         return CurrentState.GettingChatCompletion;
     }
@@ -122,7 +130,7 @@ public class State :  IState
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.Summary;
 
-        UpdateConversationWithFollowOnQuestion(questionText);
+        _conversationManager.UpdateConversationWithQuestion(questionText);
 
         return CurrentState.GettingChatCompletion;
     }
@@ -134,7 +142,7 @@ public class State :  IState
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.SummarisedAllIssues;
 
-        UpdateConversationWithSummaryQuestion(questionText, await SummaryOfMatches.Value);
+        _conversationManager.UpdateConversationWithSummaryQuestion(questionText, await SummaryOfMatches.Value);
 
         return CurrentState.GettingChatCompletionForSummary;
     }
@@ -146,7 +154,7 @@ public class State :  IState
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.SummarisedAllIssues;
 
-        UpdateConversationWithFollowOnQuestion(questionText);
+        _conversationManager.UpdateConversationWithQuestion(questionText);
 
         return CurrentState.GettingChatCompletionForSummary;
     }
@@ -169,7 +177,7 @@ public class State :  IState
         }, isDefaultAllowed: false);
 
         if (actionFromKey == ActionEnum.QuestionInNewConversation)
-            Conversation = null;
+            _conversationManager.ResetConversation();
 
         return actionFromKey switch
             {
@@ -206,7 +214,7 @@ public class State :  IState
         if (action == ActionEnum.Default) return CurrentState.SearchResults;
 
         if (action == ActionEnum.QuestionInNewConversation)
-            Conversation = null;
+            _conversationManager.ResetConversation();
 
         return CurrentState.AskQuestionAboutSummary;
     }
@@ -372,7 +380,7 @@ public class State :  IState
         Console.WriteLine("Creating summary for " + file);
         try
         {
-            var summary = await _llmApi.GetSummary(content);
+            var summary = await _summaryManager.GetSummary(content);
 
             await File.WriteAllTextAsync(summaryFile, summary);
 
@@ -507,45 +515,6 @@ public class State :  IState
     }
 
 
-
-    private void UpdateConversationWithNewIssueQuestion(string question, string issueBody)
-    {
-        var content = $"{LlmPrompts.PromptToAnswerQuestionAboutDocument}: {question}\n Document: {issueBody.Replace("\n", " ").Replace("\r", "")}";
-        UpdateConversationWithQuestion(content);
-    }
-
-    private void UpdateConversationWithSummaryQuestion(string question, string issueBody)
-    {
-        var content = $"{LlmPrompts.PromptToAnswerQuestionAboutSummary}: {question}\n Issue: {issueBody.Replace("\n", " ").Replace("\r", "")}";
-        UpdateConversationWithQuestion(content);
-    }
-
-    private void  UpdateConversationWithQuestion(string content)
-    {
-        Conversation = Conversation!
-            .Append(new Message("user", content))
-            .ToArray();
-    }
-    
-    private void UpdateConversationWithFollowOnQuestion(string question)
-    {
-        Conversation = Conversation!
-            .Append(new Message("user", question))
-            .ToArray();
-    }
-
-    private Message[]? _conversation;
-    private Message[]? Conversation
-    {
-        get => _conversation ??= GetInitialQuestionMessage();
-        set => _conversation = value;
-    }
-    private static Message[] GetInitialQuestionMessage()
-    {
-        return [
-            new Message("system", LlmPrompts.SystemMessageBeforeAnsweringQuestions),
-        ];
-    }
 }
 
 public enum ActionEnum
