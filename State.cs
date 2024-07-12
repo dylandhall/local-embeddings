@@ -30,9 +30,9 @@ public class State(
     private Query CurrentQuery { get; set; } = new(string.Empty, 0);
 
     private int? _selectedMatch;
-    private List<Hit> _topMatches = new();
+    private List<IDocument> _topMatches = new();
 
-    private List<Hit> TopMatches
+    private List<IDocument> TopMatches
     {
         get => _topMatches;
         set
@@ -391,7 +391,7 @@ public class State(
 
     private record FileSummary(string File, string Content, string Title, string Summary);
 
-    private static void WriteIssuesMenu(List<Hit> topMatches)
+    private static void WriteIssuesMenu(List<IDocument> topMatches)
     {
         Console.WriteLine();
 

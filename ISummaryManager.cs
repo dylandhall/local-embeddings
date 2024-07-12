@@ -3,12 +3,12 @@ namespace LocalEmbeddings;
 public interface ISummaryManager
 {
     Task<string> GetSummary(string text);
-    Task<string> GetSummaryOfMatches(string search, List<Hit> matches);
+    Task<string> GetSummaryOfMatches(string search, List<IDocument> matches);
 }
 
 public class SummaryManager(ILlmApi llmApi) : ISummaryManager
 {
-    public async Task<string> GetSummaryOfMatches(string search, List<Hit> matches)
+    public async Task<string> GetSummaryOfMatches(string search, List<IDocument> matches)
     {
         try
         {

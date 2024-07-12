@@ -10,7 +10,7 @@ namespace LocalEmbeddings;
 public interface IVectorDb: IDisposable
 {
     Task StoreEmbeddings(List<Document> allDocuments, bool reindexExisting);
-    Task<List<Hit>> Query(string query, int offset);
+    Task<List<IDocument>> Query(string query, int offset);
     Task InitializeIndex();
     Task<IndexStats?> GetIndexStats();
     Task<string[]> GetIndexList();
@@ -66,7 +66,7 @@ public class MarqoDb : IVectorDb
                     if (res.IsSuccessStatusCode)
                     {
                         var serverDoc = JsonSerializer.Deserialize<Document>(await res.Content.ReadAsStringAsync());
-                        if (serverDoc?.content.Equals(document.content, StringComparison.OrdinalIgnoreCase)??false) return;
+                        if (serverDoc?.Content.Equals(document.Content, StringComparison.OrdinalIgnoreCase)??false) return;
                     }
 
                     missingDocIdBag.Add(document._id);
@@ -105,7 +105,7 @@ public class MarqoDb : IVectorDb
             documents = allDocuments.Skip(offset * batch).Take(batch).ToList();
         }
     }
-    public async Task<List<Hit>> Query(string query, int offset)
+    public async Task<List<IDocument>> Query(string query, int offset)
     {
         var marqoHost = _apiSettings.MarqoHost;
         var index = _apiSettings.MarqoIndex;
@@ -129,7 +129,7 @@ public class MarqoDb : IVectorDb
         var responseBody = await response.Content.ReadAsStringAsync();
         var searchResults = JsonSerializer.Deserialize<MarqoSearchResponse>(responseBody, JsonSerializerOptions);
 
-        return searchResults?.Hits??new();
+        return searchResults?.Hits.ToList<IDocument>()??new();
     }
 
 
@@ -201,39 +201,36 @@ public record IndexStats(
     [property: JsonPropertyName("numberOfVectors")] int NumberOfVectors,
     [property: JsonPropertyName("backend")] Backend Backend
 );
-public record Hit(string Id, float Score, List<Highlight> Highlights, string Content, string Summary, string Title)
+
+public interface IDocument
 {
-    [JsonPropertyName("id")]
-    public string Id { get; set; } = Id;
-
-    [JsonPropertyName("_score")]
-    public float Score { get; set; } = Score;
-
-    [JsonPropertyName("_highlights")]
-    public List<Highlight> Highlights { get; set; } = Highlights;
-
-    [JsonPropertyName("content")]
-    public string Content { get; set; } = Content;
-
-    [JsonPropertyName("summary")]
-    public string Summary { get; set; } = Summary;
-
-    [JsonPropertyName("title")]
-    public string Title { get; set; } = Title;
+    string Id { get; }
+    string Content { get; }
+    string Title { get; }
+    string Summary { get; }
 }
+
+public record Hit(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("_score")] float Score,
+    [property: JsonPropertyName("_highlights")] List<Highlight> Highlights,
+    [property: JsonPropertyName("content")] string Content,
+    [property: JsonPropertyName("summary")] string Summary,
+    [property: JsonPropertyName("title")] string Title
+) : IDocument;
 public record Highlight(string Content);
 
 public record Indexes(Index[] Results);
 public record Index(string IndexName);
-
-
-public record Document(string id, string filename, string content, string title, string summary)
+public record Document(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("filename")] string Filename,
+    [property: JsonPropertyName("content")] string Content,
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("summary")] string Summary
+) : IDocument
 {
-    public string id { get; } = id;
-    public string _id { get; } = id;
-    public string filename { get; } = filename;
-    public string content { get; } = content;
-    public string title { get; } = title;
-    public string summary { get; } = summary;
+    [JsonPropertyName("_id")]
+    public string _id => Id;
 }
 public record StoreDocumentMarqoRequest(List<Document> documents, List<string> tensorFields);
