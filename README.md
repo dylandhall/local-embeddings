@@ -1,5 +1,9 @@
 ﻿# Github issue database
 
+### Install
+
+Use the dotnet CLI to restore and build, or download the windows binary tagged to the latest release. I can add linux if anyone is interested.
+
 Fill out your LLM API details in the `api-settings.json` - I've included mine because I'm using local settings so there aren't any private tokens. You can update the API keys as you see fit, it should work fine with an OpenAi endpoint.
 
 Copy the `github-settings-example.json` to `github-settings.json` and fill out the settings in there, or just run the application and it'll prompt you for your github settings.
