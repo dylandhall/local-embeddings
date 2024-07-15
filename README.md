@@ -18,7 +18,7 @@ The console app should work just fine on linux, I haven't tested it yet however.
 
 To install docker on windows:
 
-```~~~~
+```
 winget install docker.dockerdesktop
 ```
 
