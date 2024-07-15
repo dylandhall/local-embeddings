@@ -186,3 +186,7 @@ of relying on the .Net connector's SearchAsync method.
 Ask another question or enter to return:
 
 ```
+
+### Note to self
+
+You've used `git update-index --assume-unchanged prompts.json` so changes won't get committed. Use `git update-index --no-assume-unchanged prompts.json` if you want to change the example for others, especially if you add additional prompts!
