@@ -280,7 +280,7 @@ public class State(
         foreach (var index in indexes)
             Console.WriteLine(index);
         Console.WriteLine();
-        Console.WriteLine($"Current index: {apiSettings.MarqoIndex}");
+        Console.WriteLine($"Current index: {apiSettings.DbIndex}");
         if (stats is not null)
             Console.WriteLine($"Documents: {stats.NumberOfDocuments}, Vectors: {stats.NumberOfVectors}");
         Console.WriteLine();
@@ -293,9 +293,9 @@ public class State(
         Console.WriteLine("Syncing issues from github");
         await markdownFileDownloader.GetIssues(apiSettings.LocalFolder);
 
-        var files = Directory.GetFiles(apiSettings.LocalFolder, "*.markdown");
+        var files = Directory.GetFiles(apiSettings.LocalFolder, markdownFileDownloader.FileNameMask);
 
-        var documents = await GetFileDataAndSaveSummary(files, apiSettings)
+        var documents = await GetFileDataAndSaveSummary(files)
             .Select(v => new Document(Path.GetFileNameWithoutExtension(v.File), v.File, v.Content, v.Title, v.Summary))
             .ToListAsync();
 
@@ -308,13 +308,21 @@ public class State(
     {
         await vectorDb.InitializeIndex();
 
-        return _refresh
-            ? CurrentState.Refreshing
-            : CurrentState.ShowStats;
+        if (_refresh) return CurrentState.Refreshing;
+
+        if (Directory.Exists(apiSettings.LocalFolder) &&
+            Directory.GetFiles(apiSettings.LocalFolder, markdownFileDownloader.FileNameMask).Length > 0)
+            return CurrentState.ShowStats;
+
+        Console.WriteLine($"File library not found at {apiSettings.LocalFolder} and refresh not selected , refresh y/[N]?");
+
+        var res = Console.ReadKey();
+        return res.Key != ConsoleKey.Y 
+            ? CurrentState.Finished 
+            : CurrentState.Refreshing;
     }
 
-    private async IAsyncEnumerable<FileSummary> GetFileDataAndSaveSummary(IEnumerable<string> files,
-        ApiSettings apiSettings, int llmConcurrency = 1)
+    private async IAsyncEnumerable<FileSummary> GetFileDataAndSaveSummary(IEnumerable<string> files, int llmConcurrency = 1)
     {
         const int maxConcurrency = 32;
         var llmSemaphore = new SemaphoreSlim(llmConcurrency);
@@ -329,7 +337,7 @@ public class State(
                 yield return await completedTask;
             }
 
-            tasks.Add(ProcessFile(file, llmSemaphore, apiSettings));
+            tasks.Add(ProcessFile(file, llmSemaphore));
         }
 
         while (tasks.Count > 0)
@@ -340,7 +348,7 @@ public class State(
         }
     }
 
-    private async Task<FileSummary> ProcessFile(string file, SemaphoreSlim semaphore, ApiSettings apiSettings)
+    private async Task<FileSummary> ProcessFile(string file, SemaphoreSlim semaphore)
     {
         var sw = new Stopwatch();
         string content = await File.ReadAllTextAsync(file);
@@ -348,7 +356,7 @@ public class State(
         string title = content.Split(Environment.NewLine).FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim(' ')
             .Trim('#').Trim() ?? "";
 
-        var summaryFile = $"{file}.summary";
+        var summaryFile = markdownFileDownloader.GetSummaryFileName(file);
 
         if (File.Exists(summaryFile) && File.GetLastWriteTimeUtc(summaryFile) >= File.GetLastWriteTimeUtc(file))
         {

@@ -1,26 +1,30 @@
 ﻿namespace LocalEmbeddings;
 
 public record ApiSettings(
-    string ApiUrl,
-    string ApiKey,
-    string Model,
-    string MarqoHost,
-    string MarqoIndex,
-    string MarqoModel,
+    List<LlmApiConfig> Apis,
+    string DbHost,
+    string DbIndex,
+    string DbEmbeddingModel,
     string LocalFolder,
-    string? MarqoApiKey = null) : BaseSettings<ApiSettings>
+    string? DbApiKey = null) : BaseSettings<ApiSettings>
 {
     public static Task<ApiSettings> ReadSettings() => BaseSettings<ApiSettings>.ReadSettings(
         filename: "api-settings.json",
-        getDefault: () => new ApiSettings("apiUrl", "apiKey", "model", "marqoUrl", "marqoIndex", "marqoModel", "C:\\temp\\issues"),
+        getDefault: () => new ApiSettings([new("apiUrl", "apiKey", "model")], "dbUrl", "dbIndex", "dbModel", "C:\\temp\\issues"),
         isValid: settings => settings is
         {
-            ApiUrl: not null,
-            ApiKey: not null,
-            Model: not null,
-            MarqoHost: not null,
-            MarqoIndex: not null,
-            MarqoModel: not null,
+            Apis: {Count: > 0},
+            DbHost: not null,
+            DbIndex: not null,
+            DbEmbeddingModel: not null,
             LocalFolder: not null
-        });
+        } && settings.Apis.All(a => a.IsValid));
+}
+
+public record LlmApiConfig(
+    string ApiUrl,
+    string ApiKey,
+    string Model)
+{
+    public bool IsValid => this is { ApiUrl: not null, Model: not null };
 }

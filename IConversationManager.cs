@@ -10,7 +10,7 @@ public interface IConversationManager
     Task<string> GetCompletionForCurrentConversation();
 }
 
-public class ConversationManager(ILlmApi llmApi) : IConversationManager
+public class ConversationManager(ILlmApi llmApi, Prompts prompts) : IConversationManager
 {
     public async Task<string> GetCompletionForCurrentConversation()
     {
@@ -28,13 +28,13 @@ public class ConversationManager(ILlmApi llmApi) : IConversationManager
     
     public void UpdateConversationWithDocumentQuestion(string question, string issueBody)
     {
-        var content = $"{LlmPrompts.PromptToAnswerQuestionAboutDocument}: {question}\n Document: {issueBody.Replace("\n", " ").Replace("\r", "")}";
+        var content = $"{prompts.PromptToAnswerQuestionAboutDocument}: {question}\n Document: {issueBody.Replace("\n", " ").Replace("\r", "")}";
         UpdateConversationWithQuestion(content);
     }
 
     public void UpdateConversationWithSummaryQuestion(string question, string issueBody)
     {
-        var content = $"{LlmPrompts.PromptToAnswerQuestionAboutSummary}: {question}\n Documents: {issueBody.Replace("\n", " ").Replace("\r", "")}";
+        var content = $"{prompts.PromptToAnswerQuestionAboutSummary}: {question}\n Documents: {issueBody.Replace("\n", " ").Replace("\r", "")}";
         UpdateConversationWithQuestion(content);
     }
 
@@ -54,10 +54,10 @@ public class ConversationManager(ILlmApi llmApi) : IConversationManager
         get => _conversation ??= GetInitialQuestionMessage();
         set => _conversation = value;
     }
-    private static Message[] GetInitialQuestionMessage()
+    private Message[] GetInitialQuestionMessage()
     {
         return [
-            new Message("system", LlmPrompts.SystemMessageBeforeAnsweringQuestions),
+            new Message("system", prompts.SystemMessageBeforeAnsweringQuestions),
         ];
     }
 }

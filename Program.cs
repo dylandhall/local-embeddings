@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using LocalEmbeddings;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 class Program
 {
@@ -37,11 +36,13 @@ class Program
 
     private static async Task ConfigureServices(ServiceCollection services, bool doRefresh, bool reindexExisting)
     {
-        var apiSettings = ApiSettings.ReadSettings();
-        var githubSettings = GithubSettings.ReadSettings();
+        var apiSettings = await ApiSettings.ReadSettings();
+        var prompts = await Prompts.ReadSettings();
+        var githubSettings = await GithubSettings.ReadSettings();
 
-        services.AddSingleton(await apiSettings);
-        services.AddSingleton(await githubSettings);
+        services.AddSingleton(apiSettings);
+        services.AddSingleton(githubSettings);
+        services.AddSingleton(prompts);
 
         services.AddSingleton<IProgramSettings>(new ProgramSettings(doRefresh, reindexExisting));
         services.AddScoped<IVectorDb, MarqoDb>();

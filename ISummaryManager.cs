@@ -6,16 +6,16 @@ public interface ISummaryManager
     Task<string> GetSummaryOfMatches(string search, List<IDocument> matches);
 }
 
-public class SummaryManager(ILlmApi llmApi) : ISummaryManager
+public class SummaryManager(ILlmApi llmApi, Prompts prompts) : ISummaryManager
 {
     public async Task<string> GetSummaryOfMatches(string search, List<IDocument> matches)
     {
         try
         {
-            var messages = new Message[] { new("system", LlmPrompts.SystemMessageBeforeSummaryOfMatches), }
+            var messages = new Message[] { new("system", prompts.SystemMessageBeforeSummaryOfMatches), }
                 .Concat(matches
                     .Select(m => new Message("user", m.Summary)))
-                .Append(new("user", $"{LlmPrompts.UserPromptBeforeSummaryOfMatches}: {search}"))
+                .Append(new("user", $"{prompts.UserPromptBeforeSummaryOfMatches}: {search}"))
                 .ToArray();
 
             var (reply, _) = await llmApi.GetCompletion(messages);
@@ -34,7 +34,7 @@ public class SummaryManager(ILlmApi llmApi) : ISummaryManager
         {
             var messages = new Message[]
             {
-                new("system", LlmPrompts.PromptToSummariseDocument),
+                new("system", prompts.PromptToSummariseDocument),
                 new("user", text.Replace("\n", " ").Replace("\r", ""))
             };
             var (reply, _) = await llmApi.GetCompletion(messages);

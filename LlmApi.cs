@@ -20,31 +20,43 @@ public class LlmApi : ILlmApi
     private readonly ApiSettings _apiSettings;
     private HttpClient? _client;
 
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
+
+    
+    // i've included llm apis as an array, so i can later introduce different llms for different tasks
+    // eg asking questions on an expensive high-fidelity api, but summarising for indexing on a low-cost api
+    // currently we're just using the first entry for everything but updating won't break config files
+    private string? _model;
+    private string Model => _model ??= _apiSettings.Apis.FirstOrDefault()?.Model ?? string.Empty;
+    private string? _apiUrl;
+    private string ApiUrl => _apiUrl ??= _apiSettings.Apis.FirstOrDefault()?.ApiUrl ?? throw new Exception("API Url not found, cannot connect to LLM server");
+    
     private HttpClient Client
     {
         get
         {
             if (_client != null) return _client;
+            var apiKey = _apiSettings.Apis.FirstOrDefault()?.ApiKey;
+
             _client = new HttpClient();
-            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiSettings.ApiKey);
+            
+            if (!string.IsNullOrWhiteSpace(apiKey))
+                _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
             return _client;
         }
     }
 
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
-
-
     public async Task<(string, Message[])> GetCompletion(Message[] messages)
     {
         try
         {
-            var requestBody = new { messages, _apiSettings.Model };
+            var requestBody = new { messages, Model };
 
             var json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await Client.PostAsync($"{_apiSettings.ApiUrl}/chat/completions", content);
+            var response = await Client.PostAsync($"{ApiUrl}/chat/completions", content);
             response.EnsureSuccessStatusCode();
 
             var responseBody = await response.Content.ReadAsStringAsync();

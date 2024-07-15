@@ -7,15 +7,6 @@ using Dasync.Collections;
 
 namespace LocalEmbeddings;
 
-public interface IVectorDb: IDisposable
-{
-    Task StoreEmbeddings(List<Document> allDocuments, bool reindexExisting);
-    Task<List<IDocument>> Query(string query, int offset);
-    Task InitializeIndex();
-    Task<IndexStats?> GetIndexStats();
-    Task<string[]> GetIndexList();
-}
-
 public class MarqoDb : IVectorDb
 {
     private readonly ApiSettings _apiSettings;
@@ -37,9 +28,9 @@ public class MarqoDb : IVectorDb
          
             _client = new HttpClient();
 
-            if (!string.IsNullOrEmpty(_apiSettings.MarqoApiKey))
+            if (!string.IsNullOrEmpty(_apiSettings.DbApiKey))
             {
-                _client.DefaultRequestHeaders.Add("x-api-key", _apiSettings.MarqoApiKey);
+                _client.DefaultRequestHeaders.Add("x-api-key", _apiSettings.DbApiKey);
             }
 
             return _client;
@@ -48,8 +39,8 @@ public class MarqoDb : IVectorDb
 
     public async Task StoreEmbeddings(List<Document> allDocuments, bool reindexExisting)
     {
-        var marqoHost = _apiSettings.MarqoHost;
-        var index = _apiSettings.MarqoIndex;
+        var marqoHost = _apiSettings.DbHost;
+        var index = _apiSettings.DbIndex;
 
         const int batch = 25;
         var documents = allDocuments.Take(batch).ToList();
@@ -107,8 +98,8 @@ public class MarqoDb : IVectorDb
     }
     public async Task<List<IDocument>> Query(string query, int offset)
     {
-        var marqoHost = _apiSettings.MarqoHost;
-        var index = _apiSettings.MarqoIndex;
+        var marqoHost = _apiSettings.DbHost;
+        var index = _apiSettings.DbIndex;
 
         var requestBody = new
         {
@@ -135,9 +126,9 @@ public class MarqoDb : IVectorDb
 
     public async Task InitializeIndex()
     {
-        var host = _apiSettings.MarqoHost;
-        var index = _apiSettings.MarqoIndex;
-        var model = _apiSettings.MarqoModel;
+        var host = _apiSettings.DbHost;
+        var index = _apiSettings.DbIndex;
+        var model = _apiSettings.DbEmbeddingModel;
 
         var createIndexUrl = $"{host}/indexes/{index}";
 
@@ -162,8 +153,8 @@ public class MarqoDb : IVectorDb
 
     public async Task<IndexStats?> GetIndexStats()
     {
-        string marqoHost = _apiSettings.MarqoHost;
-        string index = _apiSettings.MarqoIndex;
+        string marqoHost = _apiSettings.DbHost;
+        string index = _apiSettings.DbIndex;
 
         var response = await Client.GetAsync($"{marqoHost}/indexes/{index}/stats");
         response.EnsureSuccessStatusCode();
@@ -174,7 +165,7 @@ public class MarqoDb : IVectorDb
     }
     public async Task<string[]> GetIndexList()
     {
-        string marqoHost = _apiSettings.MarqoHost;
+        string marqoHost = _apiSettings.DbHost;
         var response = await Client.GetAsync(marqoHost + "/indexes");
         response.EnsureSuccessStatusCode();
 

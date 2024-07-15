@@ -6,6 +6,9 @@ public interface IMarkdownFileDownloader
 {
     Task GetIssues(string folder);
     string GetUrlForDocument(string id);
+    string GetFileName(string id);
+    string GetSummaryFileName(string id);
+    string FileNameMask { get; }
 }
 
 public class GithubIssueDownloader : IMarkdownFileDownloader
@@ -33,6 +36,10 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
     public string GetUrlForDocument(string id) =>
         $"https://github.com/{_githubSettings.Owner}/{_githubSettings.Repo}/issues/{id}";
 
+    public string GetFileName(string id) => $"{id}.markdown";
+    public string GetSummaryFileName(string originalFilename) => originalFilename + ".summary";
+    public string FileNameMask => "*.markdown";
+
     private async Task GetAllIssues(GitHubClient client, string owner, string repo, string folder)
     {
         var issueRequest = new RepositoryIssueRequest { State = ItemStateFilter.All, SortDirection = SortDirection.Descending, SortProperty = IssueSort.Created };
@@ -49,12 +56,12 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
 
             foreach (var pr in issues.Where(i => i is {PullRequest: not null}))
             {
-                string filename = Path.Join(folder, $"{pr.Number}.markdown");
+                string filename = Path.Join(folder, GetFileName(pr.Number.ToString()));
                 if (File.Exists(filename)) 
                     File.Delete(filename);
                 else continue;
 
-                filename = $"{filename}.summary";
+                filename = GetSummaryFileName(filename);
                 if (File.Exists(filename)) File.Delete(filename);
 
                 Console.WriteLine($"Removed PR #{pr.Number}");
@@ -64,12 +71,14 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
             var issuesToSave = issues.Where(i => i is {PullRequest: null}).ToList();
             foreach (var issue in issuesToSave)
             {
-                string filename = Path.Join(folder, $"{issue.Number}.markdown");
+                string filename = Path.Join(folder, GetFileName(issue.Number.ToString()));
                 if (File.Exists(filename))
                 {
                     if (!issue.UpdatedAt.HasValue) continue;
                     if (issue.UpdatedAt.Value.UtcDateTime < File.GetLastWriteTimeUtc(filename)) continue;
-                }
+                } else if (File.Exists(GetSummaryFileName(filename)))
+                    File.Delete(GetSummaryFileName(filename));
+
                 anyNewOrUpdated = true;
                 await using (StreamWriter writer = new StreamWriter(filename))
                 {
