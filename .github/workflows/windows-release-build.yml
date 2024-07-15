@@ -19,13 +19,19 @@ jobs:
       run: dotnet publish --no-restore -c Release -o output
       env:
         Configuration: Release
-    - name: Archive binary
-      run: zip -r windows-build.zip output/*
+
+    - name: Compress build output
+      run: |
+        powershell Compress-Archive -Path $env:GITHUB_WORKSPACE\output\* -DestinationPath $env:RUNNER_TEMP\windows-build.zip
+      env:
+        RUNNER_TEMP: ${{ runner.temp }}
+        GITHUB_WORKSPACE: ${{ github.workspace }}
+
     - name: Upload Windows build artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-binary
-        path: windows-build.zip
+        path: ${{ runner.temp }}\windows-build.zip
 
   attach-release:
     runs-on: ubuntu-latest
