@@ -22,7 +22,7 @@ For the included database provider, use Marqo https://github.com/marqo-ai/marqo 
 
 You can also add another implementation of `IVectorDb` and inject that, although currently it assumes the database handles creating the vectors. 
 
-The console app should work just fine on linux, I haven't tested it yet however.
+The console app should work just fine on linux - use docker for linux for marqo, and lmstudio (https://lmstudio.ai/) for linux if using a local LLM.
 
 To install docker on windows:
 
@@ -32,7 +32,7 @@ winget install docker.dockerdesktop
 
 You may have to restart.
 
-To se up marqo via command prompt (from the github repo linked above):
+To se up marqo via command prompt (from the [github repo](https://github.com/marqo-ai/marqo)):
 
 ```
 docker rm -f marqo
