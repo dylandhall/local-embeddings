@@ -1,4 +1,6 @@
-﻿namespace LocalEmbeddings;
+﻿using LocalEmbeddings.Models;
+
+namespace LocalEmbeddings.Providers;
 
 public interface IVectorDb: IDisposable
 {

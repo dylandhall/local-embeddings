@@ -1,4 +1,8 @@
-namespace LocalEmbeddings;
+using LocalEmbeddings.Models;
+using LocalEmbeddings.Providers;
+using LocalEmbeddings.Settings;
+
+namespace LocalEmbeddings.Managers;
 
 public interface ISummaryManager
 {

@@ -1,26 +1,12 @@
-﻿using Octokit;
+﻿using LocalEmbeddings.Settings;
+using Octokit;
 
-namespace LocalEmbeddings;
+namespace LocalEmbeddings.Providers;
 
-public interface IMarkdownFileDownloader
+public class GithubIssueDownloader(GithubSettings githubSettings, IProgramSettings programSettings)
+    : IDocumentFileDownloader
 {
-    Task GetIssues(string folder);
-    string GetUrlForDocument(string id);
-    string GetFileName(string id);
-    string GetSummaryFileName(string id);
-    string FileNameMask { get; }
-}
-
-public class GithubIssueDownloader : IMarkdownFileDownloader
-{
-    private readonly GithubSettings _githubSettings;
-
-    private readonly bool _fullGithubRefresh;
-    public GithubIssueDownloader(GithubSettings githubSettings, IProgramSettings programSettings)
-    {
-        _githubSettings = githubSettings;
-        _fullGithubRefresh = programSettings.FullGithubRefresh;
-    }
+    private readonly bool _fullGithubRefresh = programSettings.FullGithubRefresh;
 
     public async Task GetIssues(string folder)
     {
@@ -28,15 +14,15 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
 
         var client = new GitHubClient(new ProductHeaderValue("GitHubIssueDownloader"))
         {
-            Credentials = new Credentials(_githubSettings.GitHubToken)
+            Credentials = new Credentials(githubSettings.GitHubToken)
         };
 
-        await GetAllIssues(client, _githubSettings.Owner, _githubSettings.Repo, folder);
+        await GetAllIssues(client, githubSettings.Owner, githubSettings.Repo, folder);
 
     }
 
     public string GetUrlForDocument(string id) =>
-        $"https://github.com/{_githubSettings.Owner}/{_githubSettings.Repo}/issues/{id}";
+        $"https://github.com/{githubSettings.Owner}/{githubSettings.Repo}/issues/{id}";
 
     public string GetFileName(string id) => $"{id}.markdown";
     public string GetSummaryFileName(string originalFilename) => originalFilename + ".summary";

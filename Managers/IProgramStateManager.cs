@@ -1,26 +1,28 @@
 ﻿using System.Diagnostics;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using ConsoleMarkdownRenderer;
 using Dasync.Collections;
+using LocalEmbeddings.Models;
+using LocalEmbeddings.Providers;
+using LocalEmbeddings.Settings;
 
-namespace LocalEmbeddings;
+namespace LocalEmbeddings.Managers;
 
-public interface IState 
+public interface IProgramStateManager 
 {
     Task UpdateAndProcess();
     CurrentState CurrentState { get; }
 }
 
-public class State(
+public class ProgramProgramStateManagerManager(
     ApiSettings apiSettings,
     IVectorDb vectorDb,
     IProgramSettings args,
-    IMarkdownFileDownloader markdownFileDownloader,
-    IConversationManager conversationManager,
+    IDocumentFileDownloader documentFileDownloader,
+    IConversationSessionManager conversationSessionManager,
     ISummaryManager summaryManager)
-    : IState
+    : IProgramStateManager
 {
     private const int NumberOfResultsPerPage = 8;
     public CurrentState CurrentState { get; private set; } = CurrentState.Starting;
@@ -74,7 +76,7 @@ public class State(
     {
         Console.WriteLine("Querying, please wait..");
         Console.WriteLine();
-        var reply = await conversationManager.GetCompletionForCurrentConversation();
+        var reply = await conversationSessionManager.GetCompletionForCurrentConversation();
         WriteMarkdown(reply);
         Console.WriteLine();
         return CurrentState.AskingQuestions;
@@ -83,7 +85,7 @@ public class State(
     {
         Console.WriteLine("Querying, please wait..");
         Console.WriteLine();
-        var reply = await conversationManager.GetCompletionForCurrentConversation();
+        var reply = await conversationSessionManager.GetCompletionForCurrentConversation();
         WriteMarkdown(reply);
         Console.WriteLine();
         return CurrentState.AskFollowOnQuestionAboutSummary;
@@ -100,7 +102,7 @@ public class State(
 
         string issueBody = selected.Content;
 
-        conversationManager.UpdateConversationWithDocumentQuestion(questionText, issueBody);
+        conversationSessionManager.UpdateConversationWithDocumentQuestion(questionText, issueBody);
 
         return CurrentState.GettingChatCompletion;
     }
@@ -112,7 +114,7 @@ public class State(
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.Summary;
 
-        conversationManager.UpdateConversationWithQuestion(questionText);
+        conversationSessionManager.UpdateConversationWithQuestion(questionText);
 
         return CurrentState.GettingChatCompletion;
     }
@@ -124,7 +126,7 @@ public class State(
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.SummarisedAllIssues;
 
-        conversationManager.UpdateConversationWithSummaryQuestion(questionText, await SummaryOfMatches.Value);
+        conversationSessionManager.UpdateConversationWithSummaryQuestion(questionText, await SummaryOfMatches.Value);
 
         return CurrentState.GettingChatCompletionForSummary;
     }
@@ -136,7 +138,7 @@ public class State(
 
         if (string.IsNullOrWhiteSpace(questionText)) return CurrentState.SummarisedAllIssues;
 
-        conversationManager.UpdateConversationWithQuestion(questionText);
+        conversationSessionManager.UpdateConversationWithQuestion(questionText);
 
         return CurrentState.GettingChatCompletionForSummary;
     }
@@ -147,7 +149,7 @@ public class State(
         var issue = TopMatches[_selectedMatch!.Value];
         WriteMarkdown($"## {issue.Title}{Environment.NewLine}{Environment.NewLine}{issue.Summary}");
 
-        var url = markdownFileDownloader.GetUrlForDocument(issue.Id);
+        var url = documentFileDownloader.GetUrlForDocument(issue.Id);
         if (!string.IsNullOrWhiteSpace(url)) Console.WriteLine("Location: " + url + Environment.NewLine);
         
         var actionFromKey = GetActionFromKey(new()
@@ -159,7 +161,7 @@ public class State(
         }, isDefaultAllowed: false);
 
         if (actionFromKey == ActionEnum.QuestionInNewConversation)
-            conversationManager.ResetConversation();
+            conversationSessionManager.ResetConversation();
 
         return actionFromKey switch
             {
@@ -196,7 +198,7 @@ public class State(
         if (action == ActionEnum.Default) return CurrentState.SearchResults;
 
         if (action == ActionEnum.QuestionInNewConversation)
-            conversationManager.ResetConversation();
+            conversationSessionManager.ResetConversation();
 
         return CurrentState.AskQuestionAboutSummary;
     }
@@ -291,9 +293,9 @@ public class State(
     private async Task<CurrentState> RefreshDatabase()
     {
         Console.WriteLine("Syncing issues from github");
-        await markdownFileDownloader.GetIssues(apiSettings.LocalFolder);
+        await documentFileDownloader.GetIssues(apiSettings.LocalFolder);
 
-        var files = Directory.GetFiles(apiSettings.LocalFolder, markdownFileDownloader.FileNameMask);
+        var files = Directory.GetFiles(apiSettings.LocalFolder, documentFileDownloader.FileNameMask);
 
         var documents = await GetFileDataAndSaveSummary(files)
             .Select(v => new Document(Path.GetFileNameWithoutExtension(v.File), v.File, v.Content, v.Title, v.Summary))
@@ -311,7 +313,7 @@ public class State(
         if (_refresh) return CurrentState.Refreshing;
 
         if (Directory.Exists(apiSettings.LocalFolder) &&
-            Directory.GetFiles(apiSettings.LocalFolder, markdownFileDownloader.FileNameMask).Length > 0)
+            Directory.GetFiles(apiSettings.LocalFolder, documentFileDownloader.FileNameMask).Length > 0)
             return CurrentState.ShowStats;
 
         Console.WriteLine($"File library not found at {apiSettings.LocalFolder} and refresh not selected , refresh y/[N]?");
@@ -356,7 +358,7 @@ public class State(
         string title = content.Split(Environment.NewLine).FirstOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim(' ')
             .Trim('#').Trim() ?? "";
 
-        var summaryFile = markdownFileDownloader.GetSummaryFileName(file);
+        var summaryFile = documentFileDownloader.GetSummaryFileName(file);
 
         if (File.Exists(summaryFile) && File.GetLastWriteTimeUtc(summaryFile) >= File.GetLastWriteTimeUtc(file))
         {
@@ -537,8 +539,3 @@ public enum CurrentState
     AskFollowOnQuestionAboutSummary
 }
 public record Query(string QueryText, int Offset);
-
-
-public record Message(
-    [property: JsonPropertyName("role")] string Role, 
-    [property: JsonPropertyName("content")]string Content);

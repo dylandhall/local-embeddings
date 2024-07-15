@@ -2,21 +2,15 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Dasync.Collections;
+using LocalEmbeddings.Models;
+using LocalEmbeddings.Settings;
 
-namespace LocalEmbeddings;
+namespace LocalEmbeddings.Providers;
 
-public class MarqoDb : IVectorDb
+public class MarqoDb(ApiSettings apiSettings) : IVectorDb
 {
-    private readonly ApiSettings _apiSettings;
-
     private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
-
-    public MarqoDb(ApiSettings apiSettings)
-    {
-        _apiSettings = apiSettings;
-    }
 
     private HttpClient? _client;
 
@@ -28,9 +22,9 @@ public class MarqoDb : IVectorDb
          
             _client = new HttpClient();
 
-            if (!string.IsNullOrEmpty(_apiSettings.DbApiKey))
+            if (!string.IsNullOrEmpty(apiSettings.DbApiKey))
             {
-                _client.DefaultRequestHeaders.Add("x-api-key", _apiSettings.DbApiKey);
+                _client.DefaultRequestHeaders.Add("x-api-key", apiSettings.DbApiKey);
             }
 
             return _client;
@@ -39,8 +33,8 @@ public class MarqoDb : IVectorDb
 
     public async Task StoreEmbeddings(List<Document> allDocuments, bool reindexExisting)
     {
-        var marqoHost = _apiSettings.DbHost;
-        var index = _apiSettings.DbIndex;
+        var marqoHost = apiSettings.DbHost;
+        var index = apiSettings.DbIndex;
 
         const int batch = 25;
         var documents = allDocuments.Take(batch).ToList();
@@ -98,8 +92,8 @@ public class MarqoDb : IVectorDb
     }
     public async Task<List<IDocument>> Query(string query, int offset)
     {
-        var marqoHost = _apiSettings.DbHost;
-        var index = _apiSettings.DbIndex;
+        var marqoHost = apiSettings.DbHost;
+        var index = apiSettings.DbIndex;
 
         var requestBody = new
         {
@@ -126,9 +120,9 @@ public class MarqoDb : IVectorDb
 
     public async Task InitializeIndex()
     {
-        var host = _apiSettings.DbHost;
-        var index = _apiSettings.DbIndex;
-        var model = _apiSettings.DbEmbeddingModel;
+        var host = apiSettings.DbHost;
+        var index = apiSettings.DbIndex;
+        var model = apiSettings.DbEmbeddingModel;
 
         var createIndexUrl = $"{host}/indexes/{index}";
 
@@ -153,8 +147,8 @@ public class MarqoDb : IVectorDb
 
     public async Task<IndexStats?> GetIndexStats()
     {
-        string marqoHost = _apiSettings.DbHost;
-        string index = _apiSettings.DbIndex;
+        string marqoHost = apiSettings.DbHost;
+        string index = apiSettings.DbIndex;
 
         var response = await Client.GetAsync($"{marqoHost}/indexes/{index}/stats");
         response.EnsureSuccessStatusCode();
@@ -165,7 +159,7 @@ public class MarqoDb : IVectorDb
     }
     public async Task<string[]> GetIndexList()
     {
-        string marqoHost = _apiSettings.DbHost;
+        string marqoHost = apiSettings.DbHost;
         var response = await Client.GetAsync(marqoHost + "/indexes");
         response.EnsureSuccessStatusCode();
 
@@ -181,47 +175,3 @@ public class MarqoDb : IVectorDb
         GC.SuppressFinalize(this);
     }
 }
-public record MarqoSearchResponse(List<Hit> Hits);
-public record Backend(
-    [property: JsonPropertyName("memoryUsedPercentage")] double MemoryUsedPercentage,
-    [property: JsonPropertyName("storageUsedPercentage")] double StorageUsedPercentage
-);
-
-public record IndexStats(
-    [property: JsonPropertyName("numberOfDocuments")] int NumberOfDocuments,
-    [property: JsonPropertyName("numberOfVectors")] int NumberOfVectors,
-    [property: JsonPropertyName("backend")] Backend Backend
-);
-
-public interface IDocument
-{
-    string Id { get; }
-    string Content { get; }
-    string Title { get; }
-    string Summary { get; }
-}
-
-public record Hit(
-    [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("_score")] float Score,
-    [property: JsonPropertyName("_highlights")] List<Highlight> Highlights,
-    [property: JsonPropertyName("content")] string Content,
-    [property: JsonPropertyName("summary")] string Summary,
-    [property: JsonPropertyName("title")] string Title
-) : IDocument;
-public record Highlight(string Content);
-
-public record Indexes(Index[] Results);
-public record Index(string IndexName);
-public record Document(
-    [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("filename")] string Filename,
-    [property: JsonPropertyName("content")] string Content,
-    [property: JsonPropertyName("title")] string Title,
-    [property: JsonPropertyName("summary")] string Summary
-) : IDocument
-{
-    [JsonPropertyName("_id")]
-    public string _id => Id;
-}
-public record StoreDocumentMarqoRequest(List<Document> documents, List<string> tensorFields);

@@ -1,8 +1,11 @@
-namespace LocalEmbeddings;
+using LocalEmbeddings.Models;
+using LocalEmbeddings.Providers;
+using LocalEmbeddings.Settings;
 
-public interface IConversationManager
+namespace LocalEmbeddings.Managers;
+
+public interface IConversationSessionManager
 {
-    
     void UpdateConversationWithDocumentQuestion(string question, string issueBody);
     void UpdateConversationWithSummaryQuestion(string question, string issueBody);
     void UpdateConversationWithQuestion(string content);
@@ -10,7 +13,7 @@ public interface IConversationManager
     Task<string> GetCompletionForCurrentConversation();
 }
 
-public class ConversationManager(ILlmApi llmApi, Prompts prompts) : IConversationManager
+public class ConversationSessionManager(ILlmApi llmApi, Prompts prompts) : IConversationSessionManager
 {
     public async Task<string> GetCompletionForCurrentConversation()
     {

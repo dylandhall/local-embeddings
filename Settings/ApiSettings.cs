@@ -1,4 +1,4 @@
-﻿namespace LocalEmbeddings;
+﻿namespace LocalEmbeddings.Settings;
 
 public record ApiSettings(
     List<LlmApiConfig> Apis,

@@ -1,6 +1,9 @@
-﻿using System.Text.Json.Serialization;
-using LocalEmbeddings;
+﻿using LocalEmbeddings.Managers;
+using LocalEmbeddings.Providers;
+using LocalEmbeddings.Settings;
 using Microsoft.Extensions.DependencyInjection;
+
+namespace LocalEmbeddings;
 
 class Program
 {
@@ -30,7 +33,7 @@ class Program
 
         await using var serviceProvider = services.BuildServiceProvider();
         using var scope = serviceProvider.CreateScope();
-        var state = scope.ServiceProvider.GetRequiredService<IState>();
+        var state = scope.ServiceProvider.GetRequiredService<IProgramStateManager>();
 
         while (state is not { CurrentState: CurrentState.Finished })
             await state.UpdateAndProcess();
@@ -48,12 +51,17 @@ class Program
         services.AddSingleton(prompts);
 
         services.AddSingleton<IProgramSettings>(new ProgramSettings(doRefresh, reindexExisting, fullGithubRefresh));
+
+        // these need to be disposed
         services.AddScoped<IVectorDb, MarqoDb>();
         services.AddScoped<ILlmApi, LlmApi>();
-        services.AddScoped<IState, State>();
-        services.AddTransient<IConversationManager, ConversationManager>();
+        services.AddScoped<IProgramStateManager, ProgramProgramStateManagerManager>();
+        
+        // transient, injection will provide a separate tracked conversation 
+        services.AddTransient<IConversationSessionManager, ConversationSessionManager>();
+
         services.AddSingleton<ISummaryManager, SummaryManager>();
-        services.AddSingleton<IMarkdownFileDownloader, GithubIssueDownloader>();
+        services.AddSingleton<IDocumentFileDownloader, GithubIssueDownloader>();
     }
 }
 
@@ -65,4 +73,3 @@ public interface IProgramSettings
 }
 
 public record ProgramSettings(bool Refresh, bool Reindex, bool FullGithubRefresh) : IProgramSettings;
-

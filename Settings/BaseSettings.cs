@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace LocalEmbeddings;
+namespace LocalEmbeddings.Settings;
 
 // i should just use dotnet appsettings but for some reason i always
 // just find rehydrating serialised objects easier to work with

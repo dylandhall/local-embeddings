@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-namespace LocalEmbeddings;
+﻿namespace LocalEmbeddings.Settings;
 
 public record GithubSettings(string Owner, string Repo, string GitHubToken) : BaseSettings<GithubSettings>
 {
