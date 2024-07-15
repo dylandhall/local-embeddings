@@ -15,9 +15,11 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
 {
     private readonly GithubSettings _githubSettings;
 
-    public GithubIssueDownloader(GithubSettings githubSettings)
+    private readonly bool _fullGithubRefresh;
+    public GithubIssueDownloader(GithubSettings githubSettings, IProgramSettings programSettings)
     {
         _githubSettings = githubSettings;
+        _fullGithubRefresh = programSettings.FullGithubRefresh;
     }
 
     public async Task GetIssues(string folder)
@@ -101,7 +103,10 @@ public class GithubIssueDownloader : IMarkdownFileDownloader
                 Console.WriteLine($"Saved issue #{issue.Number} to {filename}");
             }
 
-            if (issuesToSave.Count > 1 && !anyNewOrUpdated) break;
+            // this bails if we're going back in time and we've gotten to a point where we've looked at 30 issues and
+            // none have been updated, assuming we've gotten to a historical point in the database.
+            // bypass with --full-github-refresh on the command line
+            if (!_fullGithubRefresh && issuesToSave.Count > 1 && !anyNewOrUpdated) break;
             page++;
         }
     }
