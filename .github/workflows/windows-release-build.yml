@@ -48,6 +48,18 @@ jobs:
         name: windows-binary
         path: ./release/windows
 
+    - name: Get the latest release
+      id: get_release
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const { data: latestRelease } = await github.rest.repos.getLatestRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo
+          });
+          return latestRelease;
+
     - name: Publish Windows build
       run: gh release upload "${{ github.ref_name }}" "./release/windows/windows-build.zip" --clobber
       env:
