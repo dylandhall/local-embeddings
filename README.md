@@ -10,7 +10,7 @@ The conversation and summary managers also are seperated out, as well as the pro
 
 Default prompts are included in `prompts.json`, edit them as you see fit to get the best results for the type of documents you're summarising. Delete the file to restore the default prompts.
 
-For the included database provider, use Marqo https://github.com/marqo-ai/marqo - I'm just using the local docker image, I haven't added any authentication. If you fill out the `MarqoApiKey` it should work with their cloud environment.
+For the included database provider, use Marqo https://github.com/marqo-ai/marqo - I'm just using the local docker image, I haven't added any authentication. If you fill out the `DbApiKey` it should work with their cloud environment.
 
 You can also add another implementation of `IVectorDb` and inject that, although currently it assumes the database handles creating the vectors. 
 
