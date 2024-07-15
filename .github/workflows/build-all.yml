@@ -19,7 +19,7 @@ jobs:
       run: dotnet restore
 
     - name: Build
-      run: dotnet publish --no-restore -c Release -o output
+      run: dotnet publish --no-restore -c Release -o output -r win-x64
       env:
         Configuration: Release
 
@@ -49,7 +49,7 @@ jobs:
       run: dotnet restore
 
     - name: Build
-      run: dotnet publish --no-restore -c Release -o output -r linux-x64 --self-contained
+      run: dotnet publish --no-restore -c Release -o output -r linux-x64
       env:
         Configuration: Release
 
@@ -61,3 +61,29 @@ jobs:
       with:
         name: linux-binary
         path: linux-build.zip
+
+  build-linux-self-contained:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-dotnet@v4
+      with:
+        global-json-file: global.json
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet publish --no-restore -c Release -o output -r linux-x64 --self-contained
+      env:
+        Configuration: Release
+
+    - name: Compress build output
+      run: zip -r linux-build-self-contained.zip output/*
+
+    - name: Upload Linux build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-binary-self-contained
+        path: linux-build-self-contained.zip
