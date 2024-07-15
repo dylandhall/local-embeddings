@@ -2,7 +2,7 @@
 
 ### Install
 
-Use the dotnet CLI to restore and build, or download the binaries tagged to the latest release.
+Use the dotnet CLI to restore and build, or download the binaries tagged to the [latest release](https://github.com/dylandhall/local-embeddings/releases/latest).
 
 * windows - 64 bit windows
 * linux - 64 bit linux, requires dotnet runtimes installed
