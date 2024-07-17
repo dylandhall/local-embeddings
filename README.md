@@ -7,6 +7,8 @@ Use the dotnet CLI to restore and build, or download the binaries tagged to the 
 * windows - 64 bit windows
 * linux - 64 bit linux, requires dotnet runtimes installed
 * linux-self-contained - 64 bit linux, includes all libraries so doesn't need anything installed
+* macos - 64 bit macOS, requires dotnet runtimes installed
+* macos-self-contained - 64 bit macOS, includes all libraries so doesn't need anything installed
 
 Fill out your LLM API details in the `api-settings.json` - I've included mine because I'm using local settings so there aren't any private tokens. You can update the API keys as you see fit, it should work fine with an OpenAi endpoint.
 
@@ -22,7 +24,7 @@ For the included database provider, use Marqo https://github.com/marqo-ai/marqo 
 
 You can also add another implementation of `IVectorDb` and inject that, although currently it assumes the database handles creating the vectors. 
 
-The console app should work just fine on linux - use docker for linux for marqo, and lmstudio (https://lmstudio.ai/) for linux if using a local LLM.
+The console app should work just fine on linux or mac - use docker for marqo, and lmstudio (https://lmstudio.ai/) if using a local LLM.
 
 To install docker on windows:
 
