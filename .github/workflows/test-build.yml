@@ -1,8 +1,8 @@
 name: Build and Attach Release
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [ macos-build ]
 
 jobs:
   build-windows:
@@ -139,79 +139,3 @@ jobs:
       with:
         name: macos-binary
         path: macos-build.zip
-
-  attach-release:
-    runs-on: ubuntu-latest
-    needs: [build-windows, build-linux, build-linux-self-contained]
-    if: github.event_name == 'release' && github.event.action == 'published'
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Download Windows build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: windows-binary
-        path: ./release/windows
-
-    - name: Download Linux build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: linux-binary
-        path: ./release/linux
-
-    - name: Download Linux self-contained build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: linux-binary-self-contained
-        path: ./release/linux-self-contained
-
-    - name: Download macOS build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: macos-binary
-        path: ./release/macos
-
-    - name: Download macOS self-contained build artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: macos-binary-self-contained
-        path: ./release/macos-self-contained
-
-    - name: Get the latest release
-      id: get_release
-      uses: actions/github-script@v6
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const { data: latestRelease } = await github.rest.repos.getLatestRelease({
-            owner: context.repo.owner,
-            repo: context.repo.repo
-          });
-          return latestRelease;
-
-    - name: Publish Windows build
-      run: gh release upload "${{ github.ref_name }}" "./release/windows/windows-build.zip" --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Publish Linux build
-      run: gh release upload "${{ github.ref_name }}" "./release/linux/linux-build.zip" --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Publish Linux self-contained build
-      run: gh release upload "${{ github.ref_name }}" "./release/linux-self-contained/linux-build-self-contained.zip" --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Publish macOS build
-      run: gh release upload "${{ github.ref_name }}" "./release/macos/macos-build.zip" --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Publish macOS self-contained build
-      run: gh release upload "${{ github.ref_name }}" "./release/macos-self-contained/macos-build-self-contained.zip" --clobber
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
