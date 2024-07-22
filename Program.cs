@@ -35,8 +35,8 @@ class Program
         using var scope = serviceProvider.CreateScope();
         var state = scope.ServiceProvider.GetRequiredService<IProgramStateManager>();
 
-        while (state is not { CurrentState: CurrentState.Finished })
-            await state.UpdateAndProcess();
+        while (!(state?.IsFinished ?? true))
+            state = await state.UpdateAndProcess();
     }
 
     private static async Task ConfigureServices(ServiceCollection services,bool doRefresh,
@@ -55,8 +55,9 @@ class Program
         // these need to be disposed
         services.AddScoped<IVectorDb, MarqoDb>();
         services.AddScoped<ILlmApi, LlmApi>();
-        services.AddScoped<IProgramStateManager, ProgramProgramStateManagerManager>();
-        
+        services.AddScoped<IPersistentStateServices, PersistentStateServices>();
+        services.AddScoped<IProgramStateManager, IndexingManager>();
+
         // transient, injection will provide a separate tracked conversation 
         services.AddTransient<IConversationSessionManager, ConversationSessionManager>();
 

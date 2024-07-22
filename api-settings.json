@@ -7,8 +7,8 @@
     }
   ],
   "DbHost":"http://localhost:8882",
-  "DbIndex":"semantic-kernel-issues",
+  "DbIndex":"app-index-summarised",
   "DbEmbeddingModel":"sentence-transformers/all-MiniLM-L6-v2",
-  "LocalFolder":"C:\\temp\\semantic-kernel\\issues",
+  "LocalFolder":"C:\\temp\\issues",
   "DbApiKey":null
 }

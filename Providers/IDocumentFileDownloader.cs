@@ -7,4 +7,5 @@ public interface IDocumentFileDownloader
     string GetFileName(string id);
     string GetSummaryFileName(string id);
     string FileNameMask { get; }
+    string GetMetadataFilename(string id);
 }

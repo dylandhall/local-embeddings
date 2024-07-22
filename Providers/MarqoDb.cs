@@ -51,7 +51,7 @@ public class MarqoDb(ApiSettings apiSettings) : IVectorDb
                     if (res.IsSuccessStatusCode)
                     {
                         var serverDoc = JsonSerializer.Deserialize<Document>(await res.Content.ReadAsStringAsync());
-                        if (serverDoc?.Content.Equals(document.Content, StringComparison.OrdinalIgnoreCase)??false) return;
+                        if (serverDoc?.Content.Equals(document.Summary, StringComparison.OrdinalIgnoreCase)??false) return;
                     }
 
                     missingDocIdBag.Add(document._id);
