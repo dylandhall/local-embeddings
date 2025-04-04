@@ -8,15 +8,26 @@ public record Document(
     [property: JsonPropertyName("content")] string Content,
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("summary")] string Summary,
-    [property: JsonPropertyName("created")] long? CreatedTimestamp = null,
-    [property: JsonPropertyName("closed")] long? ClosedTimestamp = null,
-    [property: JsonPropertyName("updated")] long? UpdatedTimestamp = null
+    [property: JsonPropertyName("created")] long CreatedTimestamp = 0,
+    [property: JsonPropertyName("closed")] long ClosedTimestamp = 0,
+    [property: JsonPropertyName("updated")] long UpdatedTimestamp = 0
 ) : IDocument
 {
     [JsonPropertyName("_id")]
     public string _id => Id;
+
+    [JsonIgnore]
+    public DateTimeOffset? CreatedAt => CreatedTimestamp > 0 
+        ? DateTimeOffset.FromUnixTimeMilliseconds(CreatedTimestamp) 
+        : null;
     
-    public DateTimeOffset? CreatedAt => CreatedTimestamp != null ? DateTimeOffset.FromUnixTimeMilliseconds(CreatedTimestamp.Value) : null;
-    public DateTimeOffset? ClosedAt => ClosedTimestamp != null ? DateTimeOffset.FromUnixTimeMilliseconds(ClosedTimestamp.Value) : null;
-    public DateTimeOffset? UpdatedAt => UpdatedTimestamp != null ? DateTimeOffset.FromUnixTimeMilliseconds(UpdatedTimestamp.Value) : null;
+    [JsonIgnore]
+    public DateTimeOffset? ClosedAt => ClosedTimestamp > 0 
+        ? DateTimeOffset.FromUnixTimeMilliseconds(ClosedTimestamp) 
+        : null;
+    
+    [JsonIgnore]
+    public DateTimeOffset? UpdatedAt => UpdatedTimestamp > 0 
+        ? DateTimeOffset.FromUnixTimeMilliseconds(UpdatedTimestamp) 
+        : null;
 }

@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using Dumpify;
 using LocalEmbeddings.Helpers;
 using LocalEmbeddings.Models;
 using LocalEmbeddings.Providers;
@@ -55,7 +56,9 @@ public class SearchManager(IPersistentStateServices services)
             _ => throw new ArgumentOutOfRangeException()
         };
         Console.WriteLine(res);
-        return ToState(res);
+        var programStateManager = ToState(res);
+        programStateManager.Dump();
+        return programStateManager;
     }
 
     private async Task<CurrentState> GetChatCompletion()
@@ -258,7 +261,7 @@ public class SearchManager(IPersistentStateServices services)
         sb.AppendLine("## Top matches:");
 
         foreach (var (match, index) in topMatches.Select((m, i) => (m, i)))
-            sb.AppendLine($"{index + 1}: **{match.Id}**: {match.Title}{Environment.NewLine}");
+            sb.AppendLine($"{index + 1}: **{match.Id}**: {match.Title} {match.Dump().CreatedAt}unit{Environment.NewLine}");
 
         sb.AppendLine();
         ConsoleHelper.WriteMarkdown(sb.ToString());

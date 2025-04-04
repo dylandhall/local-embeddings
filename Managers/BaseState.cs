@@ -1,4 +1,6 @@
-﻿namespace LocalEmbeddings.Managers;
+﻿using Dumpify;
+
+namespace LocalEmbeddings.Managers;
 
 public abstract class BaseState(CurrentState currentState) : IProgramStateManager
 {

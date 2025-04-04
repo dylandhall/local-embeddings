@@ -6,4 +6,5 @@ public interface IDocument
     string Content { get; }
     string Title { get; }
     string Summary { get; }
+    DateTimeOffset? CreatedAt { get; }
 }

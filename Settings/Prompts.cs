@@ -6,7 +6,8 @@ public record Prompts(
     string PromptToSummariseDocument,
     string SystemMessageBeforeAnsweringQuestions,
     string SystemMessageBeforeSummaryOfMatches,
-    string UserPromptBeforeSummaryOfMatches) : BaseSettings<Prompts>
+    string UserPromptBeforeSummaryOfMatches,
+    string SystemSummaryPerStepPrompt) : BaseSettings<Prompts>
 {
     public static Task<Prompts> ReadSettings() => BaseSettings<Prompts>.ReadSettings(
         filename: "prompts.json",
@@ -16,7 +17,8 @@ public record Prompts(
             PromptToSummariseDocument: "You are going to be given a document, which specifies a feature or describes a bug. You are required to summarise it for later searching. You need to include the names of the affected parts of the system and a short but detailed summary of either the changes requested, or the bug being reported. Try as hard as possible to include all detail without including extraneous or generic details.",
             SystemMessageBeforeAnsweringQuestions: "You are a helpful assistant who specialises in answering questions about design documents, which include details of features for software library. Answer the question as best you can with the details in the issue, as succinctly as possible, without adding anything you are unsure about",
             SystemMessageBeforeSummaryOfMatches: "You are a helpful assistant who searches through a database of documents for a user. The user will give you documents, then ask you a question, you will give a short summary to the user explaining how the issues relate to the user's search.",
-            UserPromptBeforeSummaryOfMatches: "Please give a short summary of all of the above issues, with one bullet point per issue. Please also comment on how the issues relate to each other (particularly if they are bugs), and how they relate to this search"
+            UserPromptBeforeSummaryOfMatches: "Please give a short summary of all of the above issues, with one bullet point per issue. Please also comment on how the issues relate to each other (particularly if they are bugs), and how they relate to this search",
+            SystemSummaryPerStepPrompt: "A company needs a document detailing all components of a large software package. You are going to read a software spec, and the current working summary. You will be required to update the summary based on any details in the software spec, while keeping the summary as succinct as possible and removing any extraneous details if they are no longer relevant. The summary you provide will be directly saved to the system, so it is crucial you do not include any further text or prompts that don't relate directly to the summary, or only make sense in this conversation."
         ),
         isValid: prompts => prompts is
         {

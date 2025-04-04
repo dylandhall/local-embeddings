@@ -83,7 +83,7 @@ public class IndexingManager(IPersistentStateServices services) : BaseState(Curr
 
         var documents = await GetFileDataAndSaveSummary(files)
             .Select(v => new Document(Path.GetFileNameWithoutExtension(v.File), 
-                v.File, v.Content, v.Title, v.Summary, v.CreatedAt?.ToUnixTimeMilliseconds(), v.UpdatedAt?.ToUnixTimeMilliseconds(), v.ClosedAt?.ToUnixTimeMilliseconds()))
+                v.File, v.Content, v.Title, v.Summary, v.CreatedAt?.ToUnixTimeMilliseconds()??0, v.UpdatedAt?.ToUnixTimeMilliseconds()??0, v.ClosedAt?.ToUnixTimeMilliseconds()??0))
             .ToListAsync();
 
         await services.VectorDb.StoreEmbeddings(documents, _reindex);

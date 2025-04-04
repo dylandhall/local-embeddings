@@ -102,7 +102,7 @@ public class MarqoDb(ApiSettings apiSettings) : IVectorDb
             showHighlights = true,
             searchMethod = "TENSOR",
             offset,
-            attributesToRetrieve = new[] { "id", "title", "summary", "content" }
+            attributesToRetrieve = new[] { "id", "title", "summary", "content", "created" }
         };
 
         var json = JsonSerializer.Serialize(requestBody);

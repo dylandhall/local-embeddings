@@ -8,5 +8,12 @@ public record Hit(
     [property: JsonPropertyName("_highlights")] List<Highlight> Highlights,
     [property: JsonPropertyName("content")] string Content,
     [property: JsonPropertyName("summary")] string Summary,
-    [property: JsonPropertyName("title")] string Title
-) : IDocument;
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("created")] long CreatedTimestamp = 0
+) : IDocument
+{
+    [JsonIgnore]
+    public DateTimeOffset? CreatedAt => CreatedTimestamp > 0 
+        ? DateTimeOffset.FromUnixTimeMilliseconds(CreatedTimestamp) 
+        : null;
+};
